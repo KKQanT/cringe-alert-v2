@@ -12,6 +12,8 @@ from app.config import settings
 import logging
 import tempfile
 import os
+import re
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,7 @@ async def upload_video_to_gemini(local_path: str, mime_type: str = "video/mp4"):
     logger.info(f"Uploading video to Gemini Files API: {local_path}")
     
     try:
+        #TODO: improve this for production
         uploaded_file = client.files.upload(file=local_path)
         logger.info(f"Video uploaded: {uploaded_file.name}, state: {uploaded_file.state}")
         
@@ -155,8 +158,6 @@ async def analyze_video_streaming(local_mp4_path: str):
         # Extract JSON from markdown code blocks if present
         parsed_result = None
         try:
-            import re
-            import json
             
             # Try to find JSON in code blocks first
             json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
