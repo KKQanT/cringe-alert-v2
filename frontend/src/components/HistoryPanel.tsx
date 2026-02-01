@@ -73,7 +73,8 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
           <button
             key={index}
             onClick={() => handleFeedbackClick(item)}
-            className={`w-full text-left p-3 rounded-lg border-l-4 ${severityColors[item.severity]} hover:bg-white/5 transition cursor-pointer`}
+            className={`w-full text-left p-3 rounded-lg border-l-4 ${severityColors[item.severity]} hover:bg-white/5 transition cursor-pointer animate-fadeInUp`}
+            style={{ animationDelay: `${index * 150}ms` }}
           >
             <div className="flex items-center gap-2 mb-1">
               <span>{categoryIcons[item.category]}</span>

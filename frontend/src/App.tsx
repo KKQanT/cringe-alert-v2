@@ -1,16 +1,18 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { analyzeVideoStream } from './services/api';
 import { useAppStore } from './stores/useAppStore';
 import { useAnalysisStore, type AnalysisResult } from './stores/useAnalysisStore';
 import { Recorder } from './components/Recorder';
 import { VideoPlayer, type VideoPlayerRef } from './components/VideoPlayer';
 import { HistoryPanel } from './components/HistoryPanel';
+import { FeedbackTimeline } from './components/FeedbackTimeline';
 import './index.css';
 
 function App() {
   const { currentVideoUrl, isRecorderOpen, setVideoUrl, openRecorder, closeRecorder } = useAppStore();
-  const { isAnalyzing, currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
+  const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
+  const [videoDuration, setVideoDuration] = useState(0);
 
   const handleSeekTo = useCallback((timestamp: number) => {
     videoPlayerRef.current?.seekTo(timestamp);
@@ -97,7 +99,12 @@ function App() {
                   }}
                 />
               ) : (
-                <VideoPlayer ref={videoPlayerRef} src={currentVideoUrl} className="w-full h-full" />
+                <VideoPlayer
+                  ref={videoPlayerRef}
+                  src={currentVideoUrl}
+                  className="w-full h-full"
+                  onDurationChange={setVideoDuration}
+                />
               )}
 
               {/* Manual Recorder Toggle (Safe UX) */}
@@ -119,11 +126,16 @@ function App() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Timeline */}
-            <div className="h-4 bg-[var(--color-surface-elevated)] rounded-full relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/30 to-pink-600/30 w-0"></div>
+              {/* Feedback Timeline Overlay - positioned on the native scrubber */}
+              {!isRecorderOpen && currentVideoUrl && currentAnalysis?.feedback_items && (
+                <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none px-3 pb-[12px]">
+                  <FeedbackTimeline
+                    feedbackItems={currentAnalysis.feedback_items}
+                    videoDuration={videoDuration}
+                    onSeekTo={handleSeekTo}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Lyrics Panel */}

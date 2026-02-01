@@ -1,17 +1,19 @@
-import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useRef, forwardRef, useImperativeHandle } from 'react';
 
 interface VideoPlayerProps {
   src: string | null;
   className?: string;
+  onDurationChange?: (duration: number) => void;
 }
 
 export interface VideoPlayerRef {
   seekTo: (time: number) => void;
   play: () => void;
   pause: () => void;
+  getDuration: () => number;
 }
 
-export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ src, className }, ref) => {
+export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ src, className, onDurationChange }, ref) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useImperativeHandle(ref, () => ({
@@ -22,7 +24,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ src, 
     },
     play: () => videoRef.current?.play(),
     pause: () => videoRef.current?.pause(),
+    getDuration: () => videoRef.current?.duration || 0,
   }));
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current && onDurationChange) {
+      onDurationChange(videoRef.current.duration);
+    }
+  };
 
   if (!src) {
     return (
@@ -39,6 +48,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ src, 
       className={`w-full h-full object-contain ${className}`}
       controls
       playsInline
+      onLoadedMetadata={handleLoadedMetadata}
     />
   );
 });
