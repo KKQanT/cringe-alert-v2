@@ -34,12 +34,12 @@ function App() {
             analysisText += chunk.content;
             break;
           case 'complete':
-            // Try to parse the final analysis
+            // Backend sends parsed JSON in the content field
             try {
-              const result: AnalysisResult = JSON.parse(analysisText);
+              const result: AnalysisResult = JSON.parse(chunk.content);
               setAnalysisResult(result);
             } catch {
-              console.error('Failed to parse analysis result');
+              console.error('Failed to parse analysis result:', chunk.content);
               setStatus('Analysis complete (parsing error)');
             }
             break;
