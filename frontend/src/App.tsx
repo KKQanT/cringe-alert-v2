@@ -6,6 +6,7 @@ import { Recorder } from './components/Recorder';
 import { VideoPlayer, type VideoPlayerRef } from './components/VideoPlayer';
 import { HistoryPanel } from './components/HistoryPanel';
 import { FeedbackTimeline } from './components/FeedbackTimeline';
+import { CoachPanel } from './components/CoachPanel';
 import './index.css';
 
 function App() {
@@ -73,19 +74,8 @@ function App() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-          {/* Host Panel */}
-          <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-white/5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">🎙️</span>
-              <h2 className="font-semibold text-lg">Host</h2>
-              <span className="text-xs text-gray-400 ml-auto">Gemini 2.5 Live</span>
-            </div>
-            <div className="space-y-3 overflow-y-auto h-[calc(100%-3rem)]">
-              <div className="bg-[var(--color-surface-elevated)] rounded-lg p-3 text-sm text-gray-300">
-                <p>👋 Hey there! Ready to judge your performance?</p>
-              </div>
-            </div>
-          </div>
+          {/* Coach Panel */}
+          <CoachPanel onSeekTo={handleSeekTo} />
 
           {/* Video Playground */}
           <div className="lg:col-span-2 bg-[var(--color-surface)] rounded-xl p-4 border border-white/5 flex flex-col">
