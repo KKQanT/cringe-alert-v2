@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState } from 'react';
-import { analyzeVideoStream } from './services/api';
+import { analyzeVideoStream, useGetSignedUrl, uploadFileToUrl } from './services/api';
 import { useSessionStore } from './stores/useSessionStore';
 import { useAnalysisStore, type AnalysisResult } from './stores/useAnalysisStore';
 import { Recorder } from './components/Recorder';
@@ -7,13 +7,18 @@ import { VideoPlayer, type VideoPlayerRef } from './components/VideoPlayer';
 import { HistoryPanel } from './components/HistoryPanel';
 import { FeedbackTimeline } from './components/FeedbackTimeline';
 import { CoachPanel } from './components/CoachPanel';
+import { VideoTabs } from './components/VideoTabs';
 import './index.css';
 
 function App() {
-  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder } = useSessionStore();
+  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder, switchToVideo } = useSessionStore();
   const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const getSignedUrlMutation = useGetSignedUrl();
 
   const handleSeekTo = useCallback((timestamp: number) => {
     videoPlayerRef.current?.seekTo(timestamp);
@@ -57,6 +62,42 @@ function App() {
     }
   }, [startAnalysis, setStatus, appendThinking, setAnalysisResult]);
 
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/mov'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid video file (MP4, WebM, or MOV)');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // 1. Get signed URL
+      const filename = `upload_${Date.now()}_${file.name}`;
+      const { upload_url, download_url, filename: blobName } = await getSignedUrlMutation.mutateAsync({
+        filename,
+        contentType: file.type
+      });
+
+      // 2. Upload to Firebase
+      await uploadFileToUrl(upload_url, file, file.type);
+
+      // 3. Set video and analyze
+      setVideoUrl(download_url);
+      runStreamingAnalysis(blobName);
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to upload video');
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [getSignedUrlMutation, setVideoUrl, runStreamingAnalysis]);
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] text-white">
       {/* Header */}
@@ -89,6 +130,9 @@ function App() {
 
           {/* Video Playground */}
           <div className="lg:col-span-2 bg-[var(--color-surface)] rounded-xl p-4 border border-white/5 flex flex-col">
+            {/* Video Tabs */}
+            <VideoTabs onSwitchVideo={switchToVideo} />
+
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden mb-4">
               {isRecorderOpen ? (
                 <Recorder
@@ -110,20 +154,34 @@ function App() {
 
               {/* Manual Recorder Toggle (Safe UX) */}
               {!isRecorderOpen && (
-                <div className="absolute top-4 right-4 z-10">
+                <div className="absolute top-4 right-4 z-10 flex gap-2">
                   <button
                     onClick={() => openRecorder()}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg"
                   >
-                    Record New Take
+                    🎥 Record
                   </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg disabled:opacity-50"
+                  >
+                    {isUploading ? '⏳ Uploading...' : '📁 Upload'}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
                 </div>
               )}
               {!isRecorderOpen && !currentVideoUrl && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
                     <div className="text-6xl mb-4">🎬</div>
-                    <p className="text-gray-400">Click "Record" to start</p>
+                    <p className="text-gray-400">Record or upload a video to start</p>
                   </div>
                 </div>
               )}

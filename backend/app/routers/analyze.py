@@ -64,8 +64,9 @@ async def analyze_video_stream(request: AnalyzeRequest):
             yield f"data: {json.dumps({'type': 'status', 'content': 'Converting video format...'})}\n\n"
             await asyncio.sleep(0.01)
             
-            # 2. Convert to MP4
-            local_mp4 = local_webm.replace(".webm", ".mp4")
+            # 2. Convert to MP4 (handle any extension, not just .webm)
+            base_name = os.path.splitext(local_webm)[0]
+            local_mp4 = f"{base_name}.mp4"
             await video_service.convert_webm_to_mp4(local_webm, local_mp4)
             logger.info(f"Converted: {local_mp4}")
             
@@ -106,8 +107,9 @@ async def process_video_conversion(blob_name: str):
         firebase_service.download_blob(blob_name, local_webm)
         logger.info(f"Downloaded to {local_webm}")
 
-        # 2. Convert
-        local_mp4 = local_webm.replace(".webm", ".mp4")
+        # 2. Convert (handle any extension)
+        base_name = os.path.splitext(local_webm)[0]
+        local_mp4 = f"{base_name}.mp4"
         await video_service.convert_webm_to_mp4(local_webm, local_mp4)
         logger.info(f"Converted to {local_mp4}")
 

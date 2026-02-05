@@ -186,7 +186,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-[200px]">
+      <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-[200px] max-h-[calc(100vh-24rem)]">
         {messages.length === 0 && !isConnected && (
           <p className="text-sm text-gray-400 text-center py-8">
             Click "Start Session" to talk with your coach!
