@@ -1,6 +1,6 @@
 import { useRef, useCallback, useState } from 'react';
 import { analyzeVideoStream } from './services/api';
-import { useAppStore } from './stores/useAppStore';
+import { useSessionStore } from './stores/useSessionStore';
 import { useAnalysisStore, type AnalysisResult } from './stores/useAnalysisStore';
 import { Recorder } from './components/Recorder';
 import { VideoPlayer, type VideoPlayerRef } from './components/VideoPlayer';
@@ -10,7 +10,7 @@ import { CoachPanel } from './components/CoachPanel';
 import './index.css';
 
 function App() {
-  const { currentVideoUrl, isRecorderOpen, setVideoUrl, openRecorder, closeRecorder } = useAppStore();
+  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder } = useSessionStore();
   const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const [videoDuration, setVideoDuration] = useState(0);
@@ -75,13 +75,24 @@ function App() {
       <main className="max-w-7xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
           {/* Coach Panel */}
-          <CoachPanel onSeekTo={handleSeekTo} />
+          <CoachPanel
+            onSeekTo={handleSeekTo}
+            onShowOriginal={() => {
+              // TODO: Switch to original video when we implement tabbed player
+              console.log('Switch to original video');
+            }}
+            onRecordFinal={() => {
+              // Open recorder for final take with auto-start
+              openRecorder(undefined, undefined, undefined, true);
+            }}
+          />
 
           {/* Video Playground */}
           <div className="lg:col-span-2 bg-[var(--color-surface)] rounded-xl p-4 border border-white/5 flex flex-col">
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden mb-4">
               {isRecorderOpen ? (
                 <Recorder
+                  autoStart={autoStartRecording}
                   onUploadComplete={({ downloadUrl, blobName }) => {
                     setVideoUrl(downloadUrl);
                     closeRecorder();
@@ -101,7 +112,7 @@ function App() {
               {!isRecorderOpen && (
                 <div className="absolute top-4 right-4 z-10">
                   <button
-                    onClick={openRecorder}
+                    onClick={() => openRecorder()}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg"
                   >
                     Record New Take

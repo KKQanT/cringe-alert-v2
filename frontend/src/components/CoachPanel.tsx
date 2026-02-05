@@ -1,10 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { LiveClient } from '../services/LiveClient';
 import { useAnalysisStore } from '../stores/useAnalysisStore';
-import { useAppStore } from '../stores/useAppStore';
+import { useSessionStore } from '../stores/useSessionStore';
 
 interface CoachPanelProps {
-  onSeekTo?: (timestamp: number) => void;
+  onSeekTo?: (timestamp: number, whichVideo?: 'original' | 'latest') => void;
+  onShowOriginal?: () => void;
+  onRecordFinal?: () => void;
 }
 
 interface ChatMessage {
@@ -13,7 +15,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo }) => {
+export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal, onRecordFinal }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -23,7 +25,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { currentAnalysis } = useAnalysisStore();
-  const { openRecorder } = useAppStore();
+  const { openRecorder } = useSessionStore();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -38,31 +40,51 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo }) => {
     console.log('Tool call:', name, args);
 
     switch (name) {
-      case 'open_recorder':
-        addMessage('system', `🎬 Opening recorder${args.focus_hint ? `: "${args.focus_hint}"` : ''}`);
-        openRecorder();
+      case 'start_practice': {
+        const focusHint = args.focus_hint as string | undefined;
+        const sectionStart = args.section_start as number | undefined;
+        const sectionEnd = args.section_end as number | undefined;
+        addMessage('system', `🎬 Starting practice${focusHint ? `: "${focusHint}"` : ''}`);
+        // Countdown then open recorder
+        startCountdown(3, () => {
+          openRecorder(focusHint, sectionStart, sectionEnd);
+        });
         break;
+      }
 
-      case 'seek_video':
+      case 'seek_video': {
         const timestamp = args.timestamp_seconds as number;
-        addMessage('system', `⏩ Jumping to ${Math.floor(timestamp / 60)}:${String(Math.floor(timestamp % 60)).padStart(2, '0')}`);
-        onSeekTo?.(timestamp);
+        const whichVideo = (args.which_video as string) || 'latest';
+        addMessage('system', `⏩ Jumping to ${Math.floor(timestamp / 60)}:${String(Math.floor(timestamp % 60)).padStart(2, '0')} (${whichVideo})`);
+        onSeekTo?.(timestamp, whichVideo as 'original' | 'latest');
         break;
+      }
 
-      case 'start_countdown':
-        const seconds = (args.seconds as number) || 3;
-        addMessage('system', `⏱️ Starting countdown...`);
-        startCountdown(seconds);
+      case 'show_original': {
+        addMessage('system', `📹 Switching to original video`);
+        onShowOriginal?.();
         break;
+      }
+
+      case 'record_final': {
+        const confirmationMessage = args.confirmation_message as string | undefined;
+        addMessage('system', `🎤 ${confirmationMessage || 'Time for your final take!'}`);
+        // Countdown then open recorder for final
+        startCountdown(3, () => {
+          onRecordFinal?.();
+        });
+        break;
+      }
     }
-  }, [addMessage, openRecorder, onSeekTo]);
+  }, [addMessage, openRecorder, onSeekTo, onShowOriginal, onRecordFinal]);
 
-  const startCountdown = (seconds: number) => {
+  const startCountdown = (seconds: number, onComplete?: () => void) => {
     setCountdown(seconds);
     const interval = setInterval(() => {
       setCountdown(prev => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
+          onComplete?.();
           return null;
         }
         return prev - 1;
@@ -178,10 +200,10 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo }) => {
           >
             <div
               className={`max-w-[85%] rounded-2xl px-4 py-2 ${msg.role === 'coach'
-                  ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 text-white'
-                  : msg.role === 'user'
-                    ? 'bg-blue-600/30 text-white'
-                    : 'bg-gray-600/30 text-gray-300 text-sm italic'
+                ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 text-white'
+                : msg.role === 'user'
+                  ? 'bg-blue-600/30 text-white'
+                  : 'bg-gray-600/30 text-gray-300 text-sm italic'
                 }`}
             >
               {msg.content}
@@ -205,8 +227,8 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo }) => {
             <button
               onClick={toggleMicrophone}
               className={`flex-1 px-4 py-3 rounded-xl font-semibold transition ${isListening
-                  ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
-                  : 'bg-gray-600 hover:bg-gray-700 text-white'
+                ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                : 'bg-gray-600 hover:bg-gray-700 text-white'
                 }`}
             >
               {isListening ? '🔴 Listening...' : '🎤 Hold to Talk'}

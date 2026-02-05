@@ -31,29 +31,46 @@ Your personality:
 - Encouraging but honest about areas to improve
 - Use casual language, feels like talking to a friend
 
-Your capabilities:
-- You can control the app using tools
-- When the user wants to practice, use open_recorder to start recording
-- When discussing specific moments, use seek_video to jump to that timestamp
-- Before recording, use start_countdown to give them a "3, 2, 1" countdown
+The app flow:
+1. User uploads their ORIGINAL full performance
+2. You help them practice specific sections with PRACTICE CLIPS
+3. When ready, they record their FINAL full performance
+4. Compare ORIGINAL vs FINAL for the "Cringe Score" improvement!
 
-Current context will be provided about the user's previous analysis results.
+Your capabilities (use these tools):
+- start_practice: Countdown then open recorder for a specific section
+- seek_video: Jump to a timestamp (specify which_video: "original" or "latest")
+- show_original: Switch to the original video for comparison
+- record_final: When user is ready, record their final full performance
+
+If you remember context from previous analysis:
+- Reference specific timestamps and issues
+- Celebrate improvements from practice clips
+- Naturally mention what you remember
 
 Keep responses conversational and SHORT (1-2 sentences when possible).
 End with actionable suggestions or questions.
 """
 
-# Tools the Coach can use
+# Tools the Coach can use (new design for video flow)
 COACH_TOOLS = [
     {
-        "name": "open_recorder",
-        "description": "Opens the recording modal so the user can record a new take. Use this when the user is ready to practice.",
+        "name": "start_practice",
+        "description": "Start a countdown and then open the recorder for a practice clip. Use this when the user wants to practice a specific section.",
         "parameters": {
             "type": "object",
             "properties": {
                 "focus_hint": {
                     "type": "string",
-                    "description": "A short hint about what to focus on, e.g., 'Keep tempo steady on the chorus'"
+                    "description": "What to focus on, e.g., 'Keep tempo steady on the chorus'"
+                },
+                "section_start": {
+                    "type": "number",
+                    "description": "Start timestamp in seconds of the section to practice"
+                },
+                "section_end": {
+                    "type": "number", 
+                    "description": "End timestamp in seconds of the section to practice"
                 }
             },
             "required": []
@@ -61,33 +78,48 @@ COACH_TOOLS = [
     },
     {
         "name": "seek_video",
-        "description": "Jumps the video player to a specific timestamp. Use this when discussing specific moments.",
+        "description": "Jumps the video player to a specific timestamp. Specify which video to seek in.",
         "parameters": {
             "type": "object",
             "properties": {
                 "timestamp_seconds": {
                     "type": "number",
                     "description": "The timestamp in seconds to seek to"
+                },
+                "which_video": {
+                    "type": "string",
+                    "enum": ["original", "latest"],
+                    "description": "Which video to seek in: 'original' for first upload, 'latest' for most recent"
                 }
             },
             "required": ["timestamp_seconds"]
         }
     },
     {
-        "name": "start_countdown",
-        "description": "Starts a 3-2-1 countdown before recording. Use this right before recording starts.",
+        "name": "show_original",
+        "description": "Switch the video player to show the original video. Use this when comparing or referencing the first performance.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "record_final",
+        "description": "When user is ready for their final take, ask for confirmation then open recorder for full performance. The cringe score will compare this to the original!",
         "parameters": {
             "type": "object",
             "properties": {
-                "seconds": {
-                    "type": "integer",
-                    "description": "Countdown duration (default: 3)"
+                "confirmation_message": {
+                    "type": "string",
+                    "description": "Encouraging message before the final take"
                 }
             },
             "required": []
         }
     }
 ]
+
 
 
 class LiveCoachSession:
@@ -131,41 +163,61 @@ Current session context:
             types.Tool(
                 function_declarations=[
                     types.FunctionDeclaration(
-                        name="open_recorder",
-                        description="Opens the recording modal so the user can record a new take.",
+                        name="start_practice",
+                        description="Start a countdown and then open the recorder for a practice clip. Use this when the user wants to practice a specific section.",
                         parameters=types.Schema(
                             type="OBJECT",
                             properties={
                                 "focus_hint": types.Schema(
                                     type="STRING",
-                                    description="A short hint about what to focus on"
+                                    description="What to focus on, e.g., 'Keep tempo steady on the chorus'"
+                                ),
+                                "section_start": types.Schema(
+                                    type="NUMBER",
+                                    description="Start timestamp in seconds of the section to practice"
+                                ),
+                                "section_end": types.Schema(
+                                    type="NUMBER",
+                                    description="End timestamp in seconds of the section to practice"
                                 )
                             }
                         )
                     ),
                     types.FunctionDeclaration(
                         name="seek_video",
-                        description="Jumps the video player to a specific timestamp.",
+                        description="Jumps the video player to a specific timestamp. Specify which video to seek in.",
                         parameters=types.Schema(
                             type="OBJECT",
                             properties={
                                 "timestamp_seconds": types.Schema(
                                     type="NUMBER",
                                     description="The timestamp in seconds to seek to"
+                                ),
+                                "which_video": types.Schema(
+                                    type="STRING",
+                                    description="Which video to seek in: 'original' for first upload, 'latest' for most recent"
                                 )
                             },
                             required=["timestamp_seconds"]
                         )
                     ),
                     types.FunctionDeclaration(
-                        name="start_countdown",
-                        description="Starts a 3-2-1 countdown before recording.",
+                        name="show_original",
+                        description="Switch the video player to show the original video. Use this when comparing or referencing the first performance.",
+                        parameters=types.Schema(
+                            type="OBJECT",
+                            properties={}
+                        )
+                    ),
+                    types.FunctionDeclaration(
+                        name="record_final",
+                        description="When user is ready for their final take, ask for confirmation then open recorder for full performance.",
                         parameters=types.Schema(
                             type="OBJECT",
                             properties={
-                                "seconds": types.Schema(
-                                    type="INTEGER",
-                                    description="Countdown duration (default: 3)"
+                                "confirmation_message": types.Schema(
+                                    type="STRING",
+                                    description="Encouraging message before the final take"
                                 )
                             }
                         )
@@ -275,9 +327,10 @@ Current session context:
                     logger.info(f"Tool call: {tool_name}({tool_args})")
                     await self.on_tool_call(tool_name, tool_args)
                     
-                    # Send tool response back
+                    # Send tool response back with the function call ID
                     await self.session.send_tool_response(
                         function_responses=[{
+                            "id": fc.id,
                             "name": tool_name,
                             "response": {"status": "executed"}
                         }]
