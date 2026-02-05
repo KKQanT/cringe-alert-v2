@@ -10,7 +10,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from app.config import settings
-from app.routers import upload, analyze, websocket, coach
+from app.routers import upload, analyze, websocket, coach, session
 
 app = FastAPI(
     title="Cringe Alert API",
@@ -35,6 +35,7 @@ app.add_middleware(
 # websocket.router has /ws/{session_id} which would catch /ws/coach
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 app.include_router(analyze.router, prefix="/api/analyze", tags=["analyze"])
+app.include_router(session.router)  # Has its own prefix /api/sessions
 app.include_router(coach.router, prefix="/ws", tags=["coach"])
 app.include_router(websocket.router, tags=["websocket"])
 

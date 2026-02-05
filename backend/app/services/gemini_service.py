@@ -143,9 +143,17 @@ async def analyze_video_streaming(local_mp4_path: str):
                 for candidate in chunk.candidates:
                     if hasattr(candidate, 'content') and candidate.content:
                         for part in candidate.content.parts:
-                            # Check if this is a thought summary
+                            # Capture native Gemini thought_signature if present (bytes)
+                            if hasattr(part, 'thought_signature') and part.thought_signature:
+                                # Convert bytes to hex string for storage
+                                gemini_signature = "gts_" + part.thought_signature[:16].hex()
+                                logger.info(f"Captured Gemini thought_signature: {gemini_signature}")
+                                thought_text = gemini_signature  # Use as marker
+                            
+                            # Check if this is a thought summary (thought=True)
                             if hasattr(part, 'thought') and part.thought:
                                 thought_text += part.text or ""
+                                logger.info(f"Captured thinking content: {(part.text or '')[:100]}...")
                                 yield {"type": "thinking", "content": part.text or ""}
                             # Regular text content
                             elif hasattr(part, 'text') and part.text:
@@ -173,9 +181,31 @@ async def analyze_video_streaming(local_mp4_path: str):
             logger.error(f"Failed to parse JSON: {e}")
             logger.error(f"Response was: {response_text}")
         
-        # Send complete event with parsed result
+        # Generate thought signature
+        # Priority: 1) Native Gemini signature 2) Hash of thinking 3) Hash of response
+        thought_signature = None
+        import hashlib
+        if thought_text:
+            if thought_text.startswith("gts_"):
+                # Use native Gemini signature directly
+                thought_signature = thought_text
+                logger.info(f"Using native Gemini thought_signature: {thought_signature}")
+            else:
+                # Hash the thinking content
+                thought_signature = "ts_" + hashlib.sha256(thought_text.encode()).hexdigest()[:16]
+                logger.info(f"Generated thought signature from thinking: {thought_signature}")
+        elif response_text:
+            # Fallback: generate signature from response if no thinking captured
+            thought_signature = "ts_" + hashlib.sha256(response_text.encode()).hexdigest()[:16]
+            logger.info(f"Generated thought signature from response: {thought_signature}")
+        
+        # Send complete event with parsed result and thought signature
         if parsed_result:
-            yield {"type": "complete", "content": json.dumps(parsed_result)}
+            result_with_signature = {
+                **parsed_result,
+                "thought_signature": thought_signature
+            }
+            yield {"type": "complete", "content": json.dumps(result_with_signature)}
         else:
             yield {"type": "complete", "content": response_text}
         

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.services import firebase_service, video_service
+from typing import Optional, Literal
+from app.services import firebase_service, video_service, session_service
 from app.services.gemini_service import analyze_video_streaming
 import os
 import logging
@@ -15,6 +16,8 @@ router = APIRouter(tags=["Analyze"])
 
 class AnalyzeRequest(BaseModel):
     video_url: str  # This is actually the blob name, e.g. "uploads/filename.webm"
+    session_id: Optional[str] = None  # For session persistence
+    video_type: Optional[Literal["original", "practice", "final"]] = None  # Which video this is
 
 
 @router.post("/video")
