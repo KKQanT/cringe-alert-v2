@@ -8,10 +8,11 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { FeedbackTimeline } from './components/FeedbackTimeline';
 import { CoachPanel } from './components/CoachPanel';
 import { VideoTabs } from './components/VideoTabs';
+import { MemoryIndicator } from './components/MemoryIndicator';
 import './index.css';
 
 function App() {
-  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder, switchToVideo } = useSessionStore();
+  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder, switchToVideo, updateOriginalAnalysis } = useSessionStore();
   const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +47,10 @@ function App() {
             try {
               const result: AnalysisResult = JSON.parse(chunk.content);
               setAnalysisResult(result);
+              // Store score and thought signature in session
+              if (result.overall_score !== undefined) {
+                updateOriginalAnalysis(result.overall_score, result.thought_signature ?? undefined);
+              }
             } catch {
               console.error('Failed to parse analysis result:', chunk.content);
               setStatus('Analysis complete (parsing error)');
@@ -207,15 +212,20 @@ function App() {
           <HistoryPanel onSeekTo={handleSeekTo} />
         </div>
 
-        {/* Cringe Score */}
-        <div className="mt-6 bg-[var(--color-surface)] rounded-xl p-6 border border-white/5 text-center">
-          <h3 className="text-lg font-semibold text-gray-400 mb-2">Cringe Score</h3>
-          <div className="text-6xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            {currentAnalysis ? `${currentAnalysis.overall_score}/100` : '--/100'}
+        {/* Cringe Score & Memory Status */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 bg-[var(--color-surface)] rounded-xl p-6 border border-white/5 text-center">
+            <h3 className="text-lg font-semibold text-gray-400 mb-2">Cringe Score</h3>
+            <div className="text-6xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              {currentAnalysis ? `${currentAnalysis.overall_score}/100` : '--/100'}
+            </div>
+            <p className="text-gray-400 mt-2">
+              {currentAnalysis ? currentAnalysis.summary : 'Upload a video to get your score!'}
+            </p>
           </div>
-          <p className="text-gray-400 mt-2">
-            {currentAnalysis ? currentAnalysis.summary : 'Upload a video to get your score!'}
-          </p>
+          <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-white/5">
+            <MemoryIndicator />
+          </div>
         </div>
       </main>
     </div>

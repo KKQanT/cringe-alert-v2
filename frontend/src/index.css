@@ -54,3 +54,119 @@ body {
   animation: fadeInUp 0.3s ease-out forwards;
   opacity: 0;
 }
+
+/* Memory Indicator Component */
+.memory-indicator {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+}
+
+.memory-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.memory-icon {
+  font-size: 1.1rem;
+}
+
+.memory-title {
+  font-weight: 600;
+  color: #a78bfa;
+  flex: 1;
+}
+
+.memory-status {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.memory-status.active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.memory-status.inactive {
+  background: rgba(161, 161, 170, 0.2);
+  color: #a1a1aa;
+}
+
+.memory-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.memory-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memory-label {
+  color: #a1a1aa;
+  font-size: 0.8rem;
+}
+
+.memory-value {
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.memory-value.score {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.improvement {
+  font-size: 0.75rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.improvement.positive {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22c55e;
+}
+
+.improvement.negative {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.memory-signature {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.signature-label {
+  color: #71717a;
+  font-size: 0.7rem;
+}
+
+.signature-value {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.65rem;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.memory-waiting {
+  color: #71717a;
+  font-size: 0.8rem;
+  font-style: italic;
+}

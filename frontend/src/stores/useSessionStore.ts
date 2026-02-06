@@ -47,8 +47,10 @@ interface SessionState {
 
   // Video actions
   setOriginalVideo: (url: string, blobName: string) => void;
+  updateOriginalAnalysis: (score: number, thoughtSignature?: string) => void;
   addPracticeClip: (clip: Omit<PracticeClip, 'id' | 'createdAt'>) => void;
   setFinalVideo: (url: string, blobName: string) => void;
+  updateFinalAnalysis: (score: number, thoughtSignature?: string) => void;
 
   // View actions
   switchToVideo: (type: VideoType, practiceClipId?: string) => void;
@@ -97,6 +99,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     activeVideoType: 'original',
   }),
 
+  updateOriginalAnalysis: (score, thoughtSignature) => set((state) => ({
+    originalVideo: state.originalVideo ? {
+      ...state.originalVideo,
+      score,
+      thoughtSignature,
+    } : null,
+  })),
+
   addPracticeClip: (clip) => set((state) => {
     const newClip: PracticeClip = {
       ...clip,
@@ -120,6 +130,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     currentVideoUrl: url,
     activeVideoType: 'final',
   }),
+
+  updateFinalAnalysis: (score, thoughtSignature) => set((state) => ({
+    finalVideo: state.finalVideo ? {
+      ...state.finalVideo,
+      score,
+      thoughtSignature,
+    } : null,
+  })),
 
   switchToVideo: (type, practiceClipId) => {
     const state = get();
