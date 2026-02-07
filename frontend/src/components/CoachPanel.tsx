@@ -26,7 +26,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { currentAnalysis } = useAnalysisStore();
-  const { openRecorder } = useSessionStore();
+  const { openRecorder, sessionId } = useSessionStore();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -118,9 +118,9 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
     clientRef.current = client;
 
     try {
-      await client.connect();
+      await client.connect(sessionId ?? undefined);
 
-      // Send analysis context if available
+      // Send analysis context if available (fallback for immediate context)
       if (currentAnalysis) {
         client.sendContext(currentAnalysis);
       }
@@ -128,7 +128,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       console.error('Failed to connect:', e);
       addMessage('system', 'Failed to connect to coach');
     }
-  }, [addMessage, handleToolCall, currentAnalysis]);
+  }, [addMessage, handleToolCall, currentAnalysis, sessionId]);
 
   const disconnect = useCallback(() => {
     if (clientRef.current) {

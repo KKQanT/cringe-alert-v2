@@ -9,8 +9,10 @@ import asyncio
 import base64
 import json
 import logging
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.services.live_service import LiveCoachSession
+from app.services import session_service
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +22,15 @@ router = APIRouter(tags=["Coach"])
 
 
 @router.websocket("/coach")
-async def coach_websocket(websocket: WebSocket):
+async def coach_websocket(
+    websocket: WebSocket,
+    session_id: Optional[str] = Query(None, description="Session ID for context")
+):
     """
     WebSocket endpoint for real-time coaching.
+    
+    Query params:
+    - session_id: Optional session ID to load context from Firestore
     
     Client messages (JSON):
     - {"type": "audio", "data": "<base64 PCM 16kHz>"}
@@ -37,8 +45,18 @@ async def coach_websocket(websocket: WebSocket):
     - {"type": "error", "message": "..."}
     """
     await websocket.accept()
-    print("[COACH] WebSocket accepted!", flush=True)
-    logger.info("Coach WebSocket connected")
+    print(f"[COACH] WebSocket accepted! session_id={session_id}", flush=True)
+    logger.info(f"Coach WebSocket connected, session_id={session_id}")
+    
+    # Load session context from Firestore if session_id provided
+    session_context = None
+    if session_id:
+        try:
+            session_context = session_service.get_session_context(session_id)
+            if session_context:
+                logger.info(f"Loaded session context: {session_context}")
+        except Exception as e:
+            logger.warning(f"Failed to load session context: {e}")
     
     session = None
     send_queue = asyncio.Queue()
@@ -79,12 +97,13 @@ async def coach_websocket(websocket: WebSocket):
     sender_task = None
     
     try:
-        # Create session
+        # Create session with context
         print("[COACH] Creating LiveCoachSession...", flush=True)
         session = LiveCoachSession(
             on_audio=on_audio,
             on_text=on_text,
-            on_tool_call=on_tool_call
+            on_tool_call=on_tool_call,
+            analysis_context=session_context  # Pass session context
         )
         
         # Start sender task

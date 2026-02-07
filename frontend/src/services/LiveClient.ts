@@ -32,8 +32,10 @@ export class LiveClient {
     this.callbacks = callbacks;
   }
 
-  async connect(): Promise<void> {
-    const wsUrl = `ws://localhost:8000/ws/coach`;
+  async connect(sessionId?: string): Promise<void> {
+    // Build WebSocket URL with optional session_id
+    const baseUrl = `ws://localhost:8000/ws/coach`;
+    const wsUrl = sessionId ? `${baseUrl}?session_id=${encodeURIComponent(sessionId)}` : baseUrl;
 
     this.ws = new WebSocket(wsUrl);
 

@@ -148,88 +148,77 @@ class LiveCoachSession:
         """Establish connection to Gemini Live API."""
         print(f"[LIVE] Connecting to Gemini Live API with model: {LIVE_MODEL}")
         
-        # Build context message if we have analysis
+        # Build context message from session data
         context_message = ""
         if self.analysis_context:
-            context_message = f"""
+            ctx = self.analysis_context
+            
+            # Session context format (from session_service.get_session_context())
+            if "original_score" in ctx:
+                parts = []
+                parts.append(f"Original performance score: {ctx['original_score']}/100")
+                
+                if ctx.get("original_summary"):
+                    parts.append(f"Summary: {ctx['original_summary']}")
+                
+                if ctx.get("original_feedback"):
+                    issues = [f["title"] for f in ctx["original_feedback"][:3]]
+                    parts.append(f"Key issues to work on: {', '.join(issues)}")
+                
+                if ctx.get("original_strengths"):
+                    parts.append(f"Strengths: {', '.join(ctx['original_strengths'][:2])}")
+                
+                if ctx.get("practice_clip_count", 0) > 0:
+                    parts.append(f"Practice clips recorded: {ctx['practice_clip_count']}")
+                
+                if ctx.get("final_score"):
+                    parts.append(f"Final score: {ctx['final_score']}/100")
+                    if ctx.get("improvement"):
+                        sign = "+" if ctx["improvement"] > 0 else ""
+                        parts.append(f"Improvement: {sign}{ctx['improvement']} points!")
+                
+                context_message = "SESSION MEMORY:\\n" + "\\n".join(parts)
+            
+            # Legacy format (from direct analysis result)
+            elif "overall_score" in ctx:
+                context_message = f"""
 Current session context:
-- Last score: {self.analysis_context.get('overall_score', 'N/A')}/100
-- Summary: {self.analysis_context.get('summary', 'No previous analysis')}
-- Key issues: {', '.join([f['title'] for f in self.analysis_context.get('feedback_items', [])[:3]])}
+- Last score: {ctx.get('overall_score', 'N/A')}/100
+- Summary: {ctx.get('summary', 'No previous analysis')}
+- Key issues: {', '.join([f['title'] for f in ctx.get('feedback_items', [])[:3]])}
 """
+            
+            logger.info(f"Coach context: {context_message[:200]}...")
         
-        # Build tools using SDK types
-        coach_tools = [
-            types.Tool(
-                function_declarations=[
-                    types.FunctionDeclaration(
-                        name="start_practice",
-                        description="Start a countdown and then open the recorder for a practice clip. Use this when the user wants to practice a specific section.",
-                        parameters=types.Schema(
-                            type="OBJECT",
-                            properties={
-                                "focus_hint": types.Schema(
-                                    type="STRING",
-                                    description="What to focus on, e.g., 'Keep tempo steady on the chorus'"
-                                ),
-                                "section_start": types.Schema(
-                                    type="NUMBER",
-                                    description="Start timestamp in seconds of the section to practice"
-                                ),
-                                "section_end": types.Schema(
-                                    type="NUMBER",
-                                    description="End timestamp in seconds of the section to practice"
-                                )
-                            }
-                        )
-                    ),
-                    types.FunctionDeclaration(
-                        name="seek_video",
-                        description="Jumps the video player to a specific timestamp. Specify which video to seek in.",
-                        parameters=types.Schema(
-                            type="OBJECT",
-                            properties={
-                                "timestamp_seconds": types.Schema(
-                                    type="NUMBER",
-                                    description="The timestamp in seconds to seek to"
-                                ),
-                                "which_video": types.Schema(
-                                    type="STRING",
-                                    description="Which video to seek in: 'original' for first upload, 'latest' for most recent"
-                                )
-                            },
-                            required=["timestamp_seconds"]
-                        )
-                    ),
-                    types.FunctionDeclaration(
-                        name="show_original",
-                        description="Switch the video player to show the original video. Use this when comparing or referencing the first performance.",
-                        parameters=types.Schema(
-                            type="OBJECT",
-                            properties={}
-                        )
-                    ),
-                    types.FunctionDeclaration(
-                        name="record_final",
-                        description="When user is ready for their final take, ask for confirmation then open recorder for full performance.",
-                        parameters=types.Schema(
-                            type="OBJECT",
-                            properties={
-                                "confirmation_message": types.Schema(
-                                    type="STRING",
-                                    description="Encouraging message before the final take"
-                                )
-                            }
-                        )
-                    )
-                ]
-            )
-        ]
+        # Build tools using simple dict format (per Live API docs)
+        # NON_BLOCKING allows conversation to continue while tool executes
+        start_practice = {
+            "name": "start_practice",
+            "description": "Start countdown and open recorder for practice. Call when user wants to practice.",
+            "behavior": "NON_BLOCKING"
+        }
+        seek_video = {
+            "name": "seek_video",
+            "description": "Jump video to a timestamp. Say the timestamp you're jumping to.",
+            "behavior": "NON_BLOCKING"
+        }
+        show_original = {
+            "name": "show_original",
+            "description": "Switch to show the original video for comparison.",
+            "behavior": "NON_BLOCKING"
+        }
+        record_final = {
+            "name": "record_final",
+            "description": "Open recorder for final full performance. Use when user is ready for final take.",
+            "behavior": "NON_BLOCKING"
+        }
+        
+        tools = [{"function_declarations": [start_practice, seek_video, show_original, record_final]}]
         
         config = {
             "response_modalities": ["AUDIO"],
             "system_instruction": COACH_SYSTEM_INSTRUCTION + context_message,
-            "tools": coach_tools,
+            "tools": tools,
         }
         
         try:
@@ -327,14 +316,18 @@ Current session context:
                     logger.info(f"Tool call: {tool_name}({tool_args})")
                     await self.on_tool_call(tool_name, tool_args)
                     
-                    # Send tool response back with the function call ID
-                    await self.session.send_tool_response(
-                        function_responses=[{
-                            "id": fc.id,
-                            "name": tool_name,
-                            "response": {"status": "executed"}
-                        }]
-                    )
+                    # Send tool response for NON_BLOCKING functions
+                    # Using SILENT scheduling so model continues without interruption
+                    try:
+                        function_response = types.FunctionResponse(
+                            id=fc.id,
+                            name=tool_name,
+                            response={"result": "ok", "scheduling": "SILENT"}
+                        )
+                        await self.session.send_tool_response(function_responses=[function_response])
+                        logger.info(f"Sent tool response for {tool_name}")
+                    except Exception as tool_err:
+                        logger.warning(f"Tool response failed: {tool_err}")
                     
         except Exception as e:
             logger.error(f"Error handling response: {e}")
