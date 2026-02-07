@@ -56,10 +56,22 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       }
 
       case 'seek_video': {
-        const timestamp = args.timestamp_seconds as number;
-        const whichVideo = (args.which_video as string) || 'latest';
-        addMessage('system', `Jumping to ${Math.floor(timestamp / 60)}:${String(Math.floor(timestamp % 60)).padStart(2, '0')} (${whichVideo})`);
-        onSeekTo?.(timestamp, whichVideo as 'original' | 'latest');
+        // Native audio model may use different arg names - try common variants
+        const timestamp = (args.timestamp_seconds as number)
+          ?? (args.timestamp as number)
+          ?? (args.time as number)
+          ?? (args.seconds as number)
+          ?? 0;
+        const whichVideo = (args.which_video as string) || (args.video as string) || 'latest';
+
+        // Validate timestamp is a finite number
+        if (typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= 0) {
+          addMessage('system', `Jumping to ${Math.floor(timestamp / 60)}:${String(Math.floor(timestamp % 60)).padStart(2, '0')} (${whichVideo})`);
+          onSeekTo?.(timestamp, whichVideo as 'original' | 'latest');
+        } else {
+          console.warn('seek_video called with invalid timestamp:', args);
+          addMessage('system', `Coach wants to seek but no valid timestamp provided`);
+        }
         break;
       }
 
