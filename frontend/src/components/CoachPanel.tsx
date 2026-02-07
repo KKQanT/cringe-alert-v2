@@ -1,8 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { LiveClient } from '../services/LiveClient';
+import { ChatClient } from '../services/LiveClient';
 import { useAnalysisStore } from '../stores/useAnalysisStore';
 import { useSessionStore } from '../stores/useSessionStore';
-import { Mic, MicOff, Wifi, WifiOff, Info } from 'lucide-react';
+import { MessageSquare, Send, Wifi, WifiOff, Info } from 'lucide-react';
 
 interface CoachPanelProps {
   onSeekTo?: (timestamp: number, whichVideo?: 'original' | 'latest') => void;
@@ -20,12 +20,13 @@ interface ChatMessage {
 
 export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback }) => {
   const [isConnected, setIsConnected] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const clientRef = useRef<LiveClient | null>(null);
+  const clientRef = useRef<ChatClient | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { currentAnalysis } = useAnalysisStore();
   const { openRecorder, sessionId } = useSessionStore();
@@ -35,12 +36,35 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Focus input when connected
+  useEffect(() => {
+    if (isConnected) {
+      inputRef.current?.focus();
+    }
+  }, [isConnected]);
+
   const addMessage = useCallback((role: ChatMessage['role'], content: string) => {
     setMessages(prev => [...prev, { role, content, timestamp: new Date() }]);
   }, []);
 
+  // Accumulate streamed text into the last coach message
+  const appendToLastCoachMessage = useCallback((text: string) => {
+    setMessages(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.role === 'coach') {
+        return [...prev.slice(0, -1), { ...last, content: last.content + text }];
+      }
+      return [...prev, { role: 'coach', content: text, timestamp: new Date() }];
+    });
+  }, []);
+
   const handleToolCall = useCallback((name: string, args: Record<string, unknown>) => {
     console.log('Tool call:', name, args);
+
+    // Send tool result back to model
+    const sendResult = (result: Record<string, unknown> = { status: 'ok' }) => {
+      clientRef.current?.sendToolResult(name, result);
+    };
 
     switch (name) {
       case 'start_practice': {
@@ -48,29 +72,25 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         const sectionStart = args.section_start as number | undefined;
         const sectionEnd = args.section_end as number | undefined;
         addMessage('system', `Starting practice${focusHint ? `: "${focusHint}"` : ''}`);
-        // Countdown then open recorder
         startCountdown(3, () => {
           openRecorder(focusHint, sectionStart, sectionEnd, false, 'practice');
         });
+        sendResult();
         break;
       }
 
       case 'seek_video': {
-        // Native audio model may use different arg names - try common variants
-        const timestamp = (args.timestamp_seconds as number)
-          ?? (args.timestamp as number)
-          ?? (args.time as number)
-          ?? (args.seconds as number)
-          ?? 0;
-        const whichVideo = (args.which_video as string) || (args.video as string) || 'latest';
+        const timestamp = args.timestamp_seconds as number ?? 0;
+        const whichVideo = (args.which_video as string) || 'latest';
 
-        // Validate timestamp is a finite number
         if (typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= 0) {
           addMessage('system', `Jumping to ${Math.floor(timestamp / 60)}:${String(Math.floor(timestamp % 60)).padStart(2, '0')} (${whichVideo})`);
           onSeekTo?.(timestamp, whichVideo as 'original' | 'latest');
+          sendResult();
         } else {
           console.warn('seek_video called with invalid timestamp:', args);
           addMessage('system', `Coach wants to seek but no valid timestamp provided`);
+          sendResult({ status: 'error', message: 'invalid timestamp' });
         }
         break;
       }
@@ -78,24 +98,25 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       case 'show_original': {
         addMessage('system', `Switching to original video`);
         onShowOriginal?.();
+        sendResult();
         break;
       }
 
       case 'record_final': {
         const confirmationMessage = args.confirmation_message as string | undefined;
         addMessage('system', `${confirmationMessage || 'Time for your final take!'}`);
-        // Countdown then open recorder for final
         startCountdown(3, () => {
           onRecordFinal?.();
         });
+        sendResult();
         break;
       }
 
       case 'show_feedback_card': {
-        // Try to find feedback index from args or default to 0
-        const feedbackIndex = (args.index as number) ?? (args.issue_index as number) ?? 0;
+        const feedbackIndex = (args.index as number) ?? 0;
         addMessage('system', `Highlighting feedback item ${feedbackIndex + 1}`);
         onHighlightFeedback?.(feedbackIndex);
+        sendResult();
         break;
       }
 
@@ -104,6 +125,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         if (['original', 'practice', 'final'].includes(tab)) {
           addMessage('system', `Switching to ${tab} tab`);
           onSwitchTab?.(tab as 'original' | 'practice' | 'final');
+          sendResult();
         }
         break;
       }
@@ -127,18 +149,17 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
   const connect = useCallback(async () => {
     if (clientRef.current) return;
 
-    const client = new LiveClient({
+    const client = new ChatClient({
       onConnected: () => {
         setIsConnected(true);
         addMessage('system', 'Coach connected!');
       },
       onDisconnected: () => {
         setIsConnected(false);
-        setIsListening(false);
         addMessage('system', 'Coach disconnected');
       },
       onText: (text) => {
-        addMessage('coach', text);
+        appendToLastCoachMessage(text);
       },
       onToolCall: handleToolCall,
       onError: (error) => {
@@ -151,7 +172,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
     try {
       await client.connect(sessionId ?? undefined);
 
-      // Send analysis context if available (fallback for immediate context)
+      // Send analysis context if available
       if (currentAnalysis) {
         client.sendContext(currentAnalysis);
       }
@@ -159,7 +180,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       console.error('Failed to connect:', e);
       addMessage('system', 'Failed to connect to coach');
     }
-  }, [addMessage, handleToolCall, currentAnalysis, sessionId]);
+  }, [addMessage, appendToLastCoachMessage, handleToolCall, currentAnalysis, sessionId]);
 
   const disconnect = useCallback(() => {
     if (clientRef.current) {
@@ -167,25 +188,23 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       clientRef.current = null;
     }
     setIsConnected(false);
-    setIsListening(false);
   }, []);
 
-  const toggleMicrophone = useCallback(async () => {
-    if (!clientRef.current || !isConnected) return;
+  const sendMessage = useCallback(() => {
+    const text = inputText.trim();
+    if (!text || !clientRef.current || !isConnected) return;
 
-    if (isListening) {
-      clientRef.current.stopMicrophone();
-      setIsListening(false);
-    } else {
-      try {
-        await clientRef.current.startMicrophone();
-        setIsListening(true);
-      } catch (e) {
-        console.error('Failed to start microphone:', e);
-        addMessage('system', 'Failed to access microphone');
-      }
+    addMessage('user', text);
+    clientRef.current.sendText(text);
+    setInputText('');
+  }, [inputText, isConnected, addMessage]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
-  }, [isConnected, isListening, addMessage]);
+  }, [sendMessage]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -200,15 +219,13 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
     <div className="flex flex-col h-full bg-transparent">
       {/* Header - HIDDEN in favor of Parent Header */}
       <div className="hidden items-center gap-2 mb-4">
-        <Mic className="w-5 h-5 text-[var(--color-primary)]" />
+        <MessageSquare className="w-5 h-5 text-[var(--color-primary)]" />
         <h2 className="font-semibold text-lg">Coach</h2>
-        <span className="text-xs text-gray-400 ml-auto">Gemini 2.5 Live</span>
-
-        {/* Connection indicator */}
+        <span className="text-xs text-gray-400 ml-auto">Gemini 3 Flash</span>
         <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-500'}`} />
       </div>
 
-      {/* Connection Status Bar (New) */}
+      {/* Connection Status Bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-white/5">
         <span className="text-xs font-medium text-[var(--color-text-muted)]">STATUS</span>
         <div className="flex items-center gap-2">
@@ -224,7 +241,6 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         </div>
       </div>
 
-
       {/* Countdown Overlay */}
       {countdown !== null && (
         <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 rounded-xl">
@@ -238,9 +254,9 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-[200px] max-h-[calc(100vh-24rem)] p-6">
         {messages.length === 0 && !isConnected && (
           <div className="flex flex-col items-center justify-center h-full text-center py-8 opacity-50">
-            <Mic className="w-12 h-12 mb-3 text-[var(--color-primary)]" />
+            <MessageSquare className="w-12 h-12 mb-3 text-[var(--color-primary)]" />
             <p className="text-sm text-gray-400">
-              Click "Start Session" to talk with your coach!
+              Click "Start Session" to chat with your coach!
             </p>
           </div>
         )}
@@ -273,18 +289,25 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
             onClick={connect}
             className="flex-1 bg-gradient-to-r from-[var(--color-primary)] to-[#0891b2] hover:shadow-[0_0_20px_var(--color-primary-glow)] text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
           >
-            <Mic className="w-5 h-5" /> Start Session
+            <MessageSquare className="w-5 h-5" /> Start Session
           </button>
         ) : (
           <>
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message..."
+              className="flex-1 bg-[var(--color-surface-elevated)] text-white px-4 py-3 rounded-xl border border-[var(--color-border)] focus:outline-none focus:border-[var(--color-primary)] placeholder:text-[var(--color-text-dim)]"
+            />
             <button
-              onClick={toggleMicrophone}
-              className={`flex-1 px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 ${isListening
-                ? 'bg-red-500/10 text-red-500 border border-red-500/50 animate-pulse'
-                : 'bg-[var(--color-surface-elevated)] text-white hover:bg-[var(--color-surface-mid)] border border-[var(--color-border)]'
-                }`}
+              onClick={sendMessage}
+              disabled={!inputText.trim()}
+              className="px-4 py-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white transition font-medium disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {isListening ? <><Mic className="w-5 h-5" /> Listening...</> : <><MicOff className="w-5 h-5" /> Hold to Talk</>}
+              <Send className="w-5 h-5" />
             </button>
             <button
               onClick={disconnect}
