@@ -28,7 +28,7 @@ const formatTimestamp = (seconds: number): string => {
 };
 
 export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
-  const { isAnalyzing, analysisStatus, thinkingContent, currentAnalysis } = useAnalysisStore();
+  const { isAnalyzing, analysisStatus, thinkingContent, currentAnalysis, highlightedFeedbackIndex } = useAnalysisStore();
 
   const handleFeedbackClick = (item: FeedbackItem) => {
     if (onSeekTo) {
@@ -83,7 +83,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
           <button
             key={index}
             onClick={() => handleFeedbackClick(item)}
-            className={`w-full text-left p-4 rounded-xl border-l-4 ${severityColors[item.severity]} hover:bg-white/5 transition-all cursor-pointer animate-fadeInUp shadow-sm hover:shadow-md`}
+            className={`w-full text-left p-4 rounded-xl border-l-4 ${severityColors[item.severity]} hover:bg-white/5 transition-all cursor-pointer animate-fadeInUp shadow-sm hover:shadow-md ${highlightedFeedbackIndex === index ? 'ring-2 ring-[var(--color-primary)] shadow-[0_0_15px_var(--color-primary-glow)]' : ''}`}
             style={{ animationDelay: `${index * 150}ms` }}
           >
             <div className="flex items-center gap-2 mb-1">

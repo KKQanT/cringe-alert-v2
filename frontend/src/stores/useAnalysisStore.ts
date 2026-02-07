@@ -25,6 +25,9 @@ interface AnalysisState {
   // Results
   currentAnalysis: AnalysisResult | null;
 
+  // Highlighted feedback (for coach to point at)
+  highlightedFeedbackIndex: number | null;
+
   // History
   analysisHistory: AnalysisResult[];
 
@@ -33,6 +36,7 @@ interface AnalysisState {
   setStatus: (status: string) => void;
   appendThinking: (content: string) => void;
   setAnalysisResult: (result: AnalysisResult) => void;
+  setHighlightedFeedback: (index: number | null) => void;
   reset: () => void;
 }
 
@@ -41,6 +45,7 @@ export const useAnalysisStore = create<AnalysisState>((set) => ({
   analysisStatus: '',
   thinkingContent: '',
   currentAnalysis: null,
+  highlightedFeedbackIndex: null,
   analysisHistory: [],
 
   startAnalysis: () => set({
@@ -61,6 +66,8 @@ export const useAnalysisStore = create<AnalysisState>((set) => ({
     currentAnalysis: result,
     analysisHistory: [...state.analysisHistory, result]
   })),
+
+  setHighlightedFeedback: (index) => set({ highlightedFeedbackIndex: index }),
 
   reset: () => set({
     isAnalyzing: false,

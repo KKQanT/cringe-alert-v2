@@ -23,33 +23,24 @@ client = genai.Client(api_key=settings.GOOGLE_API_KEY)
 # Model for Live API - must use the native audio model
 LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025"
 
-# System instruction for the Coach
-COACH_SYSTEM_INSTRUCTION = """You are "The Coach" - an enthusiastic, supportive music coach for singing and guitar covers.
+# System instruction for the Coach - kept short for native audio model
+COACH_SYSTEM_INSTRUCTION = """You are The Coach, an enthusiastic music performance coach.
 
-Your personality:
-- Hype-man energy but professional
-- Encouraging but honest about areas to improve
-- Use casual language, feels like talking to a friend
+Be supportive, energetic, and helpful. Keep responses short (1-2 sentences).
 
-The app flow:
-1. User uploads their ORIGINAL full performance
-2. You help them practice specific sections with PRACTICE CLIPS
-3. When ready, they record their FINAL full performance
-4. Compare ORIGINAL vs FINAL for the "Cringe Score" improvement!
+You have these tools available:
+- show_feedback_card: Highlight an issue from the analysis
+- start_practice: Open recorder for practice
+- seek_video: Jump to a timestamp
+- switch_tab: Switch between original/practice/final tabs
+- show_original: Show original video
+- record_final: Record final performance
 
-Your capabilities (use these tools):
-- start_practice: Countdown then open recorder for a specific section
-- seek_video: Jump to a timestamp (specify which_video: "original" or "latest")
-- show_original: Switch to the original video for comparison
-- record_final: When user is ready, record their final full performance
-
-If you remember context from previous analysis:
-- Reference specific timestamps and issues
-- Celebrate improvements from practice clips
-- Naturally mention what you remember
-
-Keep responses conversational and SHORT (1-2 sentences when possible).
-End with actionable suggestions or questions.
+When coaching:
+1. Greet the user and mention their performance issues
+2. Go through issues one by one using show_feedback_card
+3. Help them practice sections using start_practice
+4. When ready, use record_final for final take
 """
 
 # Tools the Coach can use (new design for video flow)
@@ -177,7 +168,7 @@ class LiveCoachSession:
                         sign = "+" if ctx["improvement"] > 0 else ""
                         parts.append(f"Improvement: {sign}{ctx['improvement']} points!")
                 
-                context_message = "SESSION MEMORY:\\n" + "\\n".join(parts)
+                context_message = "SESSION MEMORY:\n" + "\n".join(parts)
             
             # Legacy format (from direct analysis result)
             elif "overall_score" in ctx:
@@ -190,30 +181,17 @@ Current session context:
             
             logger.info(f"Coach context: {context_message[:200]}...")
         
-        # Build tools using simple dict format (per Live API docs)
-        # NON_BLOCKING allows conversation to continue while tool executes
-        start_practice = {
-            "name": "start_practice",
-            "description": "Start countdown and open recorder for practice. Call when user wants to practice.",
-            "behavior": "NON_BLOCKING"
-        }
-        seek_video = {
-            "name": "seek_video",
-            "description": "Jump video to a timestamp. Say the timestamp you're jumping to.",
-            "behavior": "NON_BLOCKING"
-        }
-        show_original = {
-            "name": "show_original",
-            "description": "Switch to show the original video for comparison.",
-            "behavior": "NON_BLOCKING"
-        }
-        record_final = {
-            "name": "record_final",
-            "description": "Open recorder for final full performance. Use when user is ready for final take.",
-            "behavior": "NON_BLOCKING"
-        }
+        # Build tools using MINIMAL format for native audio model
+        # Per Live API docs: native audio only supports simple {"name": "..."} format
+        # The system instruction provides the context for how to use these tools
+        show_feedback_card = {"name": "show_feedback_card"}
+        switch_tab = {"name": "switch_tab"}
+        start_practice = {"name": "start_practice"}
+        seek_video = {"name": "seek_video"}
+        show_original = {"name": "show_original"}
+        record_final = {"name": "record_final"}
         
-        tools = [{"function_declarations": [start_practice, seek_video, show_original, record_final]}]
+        tools = [{"function_declarations": [show_feedback_card, switch_tab, start_practice, seek_video, show_original, record_final]}]
         
         config = {
             "response_modalities": ["AUDIO"],

@@ -12,13 +12,13 @@ import { MemoryIndicator } from './components/MemoryIndicator';
 import { FinalComparison } from './components/FinalComparison';
 import { Sidebar } from './components/Sidebar';
 import {
-  Search, Sparkles, TrendingDown, Mic, BarChart2, Video, Upload, Download,
-  Circle, Play, Film
+  Search, Sparkles, TrendingDown, Mic, BarChart2, Upload, Download,
+  Circle, Film
 } from 'lucide-react';
 import './index.css';
 
 function App() {
-  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder, switchToVideo, updateOriginalAnalysis, updateFinalAnalysis, originalVideo, finalVideo } = useSessionStore();
+  const { currentVideoUrl, isRecorderOpen, autoStartRecording, recorderType, recorderFocusHint, recorderSectionStart, recorderSectionEnd, setVideoUrl, openRecorder, closeRecorder, switchToVideo, updateOriginalAnalysis, updateFinalAnalysis, addPracticeClip, originalVideo, finalVideo } = useSessionStore();
   const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,8 +220,10 @@ function App() {
               <div className="flex-1 p-0 overflow-hidden bg-[var(--color-surface-mid)]">
                 <CoachPanel
                   onSeekTo={handleSeekTo}
-                  onShowOriginal={() => { }}
-                  onRecordFinal={() => openRecorder(undefined, undefined, undefined, true)}
+                  onShowOriginal={() => switchToVideo('original')}
+                  onRecordFinal={() => openRecorder(undefined, undefined, undefined, true, 'final')}
+                  onSwitchTab={(tab) => switchToVideo(tab)}
+                  onHighlightFeedback={(index) => useAnalysisStore.getState().setHighlightedFeedback(index)}
                 />
               </div>
             </div>
@@ -249,9 +251,31 @@ function App() {
                     <Recorder
                       autoStart={autoStartRecording}
                       onUploadComplete={({ downloadUrl, blobName }) => {
-                        setVideoUrl(downloadUrl);
-                        closeRecorder();
-                        runStreamingAnalysis(blobName);
+                        const recordingType = recorderType;
+
+                        if (recordingType === 'practice') {
+                          // Add practice clip and analyze
+                          addPracticeClip({
+                            url: downloadUrl,
+                            blobName,
+                            focusHint: recorderFocusHint ?? undefined,
+                            sectionStart: recorderSectionStart ?? undefined,
+                            sectionEnd: recorderSectionEnd ?? undefined,
+                          });
+                          closeRecorder();
+                          // TODO: Run practice-specific analysis and notify coach
+                          runStreamingAnalysis(blobName);
+                        } else if (recordingType === 'final') {
+                          // Final recording
+                          setVideoUrl(downloadUrl);
+                          closeRecorder();
+                          runStreamingAnalysis(blobName);
+                        } else {
+                          // Original (first upload)
+                          setVideoUrl(downloadUrl);
+                          closeRecorder();
+                          runStreamingAnalysis(blobName);
+                        }
                       }}
                     />
                   ) : (

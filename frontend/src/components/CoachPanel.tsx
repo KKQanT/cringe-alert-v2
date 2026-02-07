@@ -2,12 +2,14 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { LiveClient } from '../services/LiveClient';
 import { useAnalysisStore } from '../stores/useAnalysisStore';
 import { useSessionStore } from '../stores/useSessionStore';
-import { Mic, MicOff, Volume2, Wifi, WifiOff, Play, Info, AlertCircle } from 'lucide-react';
+import { Mic, MicOff, Wifi, WifiOff, Info } from 'lucide-react';
 
 interface CoachPanelProps {
   onSeekTo?: (timestamp: number, whichVideo?: 'original' | 'latest') => void;
   onShowOriginal?: () => void;
   onRecordFinal?: () => void;
+  onSwitchTab?: (tab: 'original' | 'practice' | 'final') => void;
+  onHighlightFeedback?: (index: number) => void;
 }
 
 interface ChatMessage {
@@ -16,7 +18,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal, onRecordFinal }) => {
+export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -48,7 +50,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         addMessage('system', `Starting practice${focusHint ? `: "${focusHint}"` : ''}`);
         // Countdown then open recorder
         startCountdown(3, () => {
-          openRecorder(focusHint, sectionStart, sectionEnd);
+          openRecorder(focusHint, sectionStart, sectionEnd, false, 'practice');
         });
         break;
       }
@@ -76,8 +78,25 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         });
         break;
       }
+
+      case 'show_feedback_card': {
+        // Try to find feedback index from args or default to 0
+        const feedbackIndex = (args.index as number) ?? (args.issue_index as number) ?? 0;
+        addMessage('system', `Highlighting feedback item ${feedbackIndex + 1}`);
+        onHighlightFeedback?.(feedbackIndex);
+        break;
+      }
+
+      case 'switch_tab': {
+        const tab = (args.tab as string) ?? 'original';
+        if (['original', 'practice', 'final'].includes(tab)) {
+          addMessage('system', `Switching to ${tab} tab`);
+          onSwitchTab?.(tab as 'original' | 'practice' | 'final');
+        }
+        break;
+      }
     }
-  }, [addMessage, openRecorder, onSeekTo, onShowOriginal, onRecordFinal]);
+  }, [addMessage, openRecorder, onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback]);
 
   const startCountdown = (seconds: number, onComplete?: () => void) => {
     setCountdown(seconds);

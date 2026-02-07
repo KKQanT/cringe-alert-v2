@@ -41,6 +41,7 @@ interface SessionState {
   recorderFocusHint: string | null;
   recorderSectionStart: number | null;
   recorderSectionEnd: number | null;
+  recorderType: 'practice' | 'final' | null;
 
   // Actions
   startNewSession: () => void;
@@ -56,7 +57,7 @@ interface SessionState {
   switchToVideo: (type: VideoType, practiceClipId?: string) => void;
 
   // Recorder actions
-  openRecorder: (focusHint?: string, sectionStart?: number, sectionEnd?: number, autoStart?: boolean) => void;
+  openRecorder: (focusHint?: string, sectionStart?: number, sectionEnd?: number, autoStart?: boolean, type?: 'practice' | 'final') => void;
   closeRecorder: () => void;
 
   // For backward compatibility
@@ -77,6 +78,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   recorderFocusHint: null,
   recorderSectionStart: null,
   recorderSectionEnd: null,
+  recorderType: null,
 
   startNewSession: () => set({
     sessionId: `session_${Date.now()}`,
@@ -166,12 +168,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     });
   },
 
-  openRecorder: (focusHint, sectionStart, sectionEnd, autoStart = false) => set({
+  openRecorder: (focusHint, sectionStart, sectionEnd, autoStart = false, type = 'practice') => set({
     isRecorderOpen: true,
     autoStartRecording: autoStart,
     recorderFocusHint: focusHint ?? null,
     recorderSectionStart: sectionStart ?? null,
     recorderSectionEnd: sectionEnd ?? null,
+    recorderType: type,
   }),
 
   closeRecorder: () => set({
@@ -180,6 +183,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     recorderFocusHint: null,
     recorderSectionStart: null,
     recorderSectionEnd: null,
+    recorderType: null,
   }),
 
   // Backward compatibility - sets as original if no original exists
