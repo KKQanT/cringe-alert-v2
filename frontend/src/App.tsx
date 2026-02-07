@@ -9,6 +9,7 @@ import { FeedbackTimeline } from './components/FeedbackTimeline';
 import { CoachPanel } from './components/CoachPanel';
 import { VideoTabs } from './components/VideoTabs';
 import { MemoryIndicator } from './components/MemoryIndicator';
+import { FinalComparison } from './components/FinalComparison';
 import { Sidebar } from './components/Sidebar';
 import {
   Search, Sparkles, TrendingDown, Mic, BarChart2, Video, Upload, Download,
@@ -17,12 +18,15 @@ import {
 import './index.css';
 
 function App() {
-  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder, switchToVideo, updateOriginalAnalysis } = useSessionStore();
+  const { currentVideoUrl, isRecorderOpen, autoStartRecording, setVideoUrl, openRecorder, closeRecorder, switchToVideo, updateOriginalAnalysis, updateFinalAnalysis, originalVideo, finalVideo } = useSessionStore();
   const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
+  const [originalFeedback, setOriginalFeedback] = useState<{ title: string; category: string }[]>([]);
+  const [finalFeedback, setFinalFeedback] = useState<{ title: string; category: string }[]>([]);
 
   const getSignedUrlMutation = useGetSignedUrl();
 
@@ -51,8 +55,16 @@ function App() {
             try {
               const result: AnalysisResult = JSON.parse(chunk.content);
               setAnalysisResult(result);
-              if (result.overall_score !== undefined) {
+              const feedbackList = result.feedback_items?.map(f => ({ title: f.title, category: f.category })) || [];
+
+              // If we already have original video with score, this is a final analysis
+              if (originalVideo?.score) {
+                updateFinalAnalysis(result.overall_score, result.thought_signature ?? undefined);
+                setFinalFeedback(feedbackList);
+                setShowComparison(true);
+              } else {
                 updateOriginalAnalysis(result.overall_score, result.thought_signature ?? undefined);
+                setOriginalFeedback(feedbackList);
               }
             } catch {
               console.error('Failed to parse analysis result:', chunk.content);
@@ -68,7 +80,7 @@ function App() {
       console.error('Streaming analysis failed:', error);
       setStatus('Analysis failed');
     }
-  }, [startAnalysis, setStatus, appendThinking, setAnalysisResult]);
+  }, [startAnalysis, setStatus, appendThinking, setAnalysisResult, originalVideo, updateOriginalAnalysis, updateFinalAnalysis, setOriginalFeedback, setFinalFeedback, setShowComparison]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -181,7 +193,15 @@ function App() {
             {/* Memory/Context Card */}
             <div className="md:col-span-2">
               <div className="glass-panel p-1 rounded-2xl h-full flex flex-col justify-center">
-                <MemoryIndicator />
+                {showComparison && finalVideo?.score ? (
+                  <FinalComparison
+                    originalFeedback={originalFeedback}
+                    finalFeedback={finalFeedback}
+                    onClose={() => setShowComparison(false)}
+                  />
+                ) : (
+                  <MemoryIndicator />
+                )}
               </div>
             </div>
           </div>
