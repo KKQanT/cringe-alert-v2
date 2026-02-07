@@ -14,6 +14,7 @@ import { CoachPanel } from './components/CoachPanel';
 import { VideoTabs } from './components/VideoTabs';
 import { MemoryIndicator } from './components/MemoryIndicator';
 import { FinalComparison } from './components/FinalComparison';
+import { FeedbackFixModal } from './components/FeedbackFixModal';
 import { Sidebar } from './components/Sidebar';
 import {
   TrendingDown, Mic, BarChart2, Upload, Download,
@@ -24,31 +25,40 @@ import './index.css';
 const USER_ID = '1';
 
 function restoreAnalysisFromSession(data: FullSession) {
-  // Restore analysis store from the active video's analysis data
-  // Priority: final > original > most recent practice clip
-  const video = data.final_video ?? data.original_video;
-  const lastPractice = data.practice_clips.length > 0
-    ? data.practice_clips[data.practice_clips.length - 1]
-    : null;
+  // Restore analysis store — prefer original video (has fix statuses), fallback to final
+  // For the feedback-card flow, the original video's feedback items are the ones that get fixed
+  const originalSource = data.original_video;
+  const finalSource = data.final_video;
 
-  const source = (video && video.score != null) ? video : lastPractice;
+  // If there's a final video with a score, show that analysis but include comparison fields
+  const source = (finalSource && finalSource.score != null) ? finalSource : originalSource;
 
   if (source && source.score != null) {
+    // For feedback items, always use original video's items (they have fix statuses)
+    const feedbackSource = originalSource ?? source;
     const result: AnalysisResult = {
       overall_score: source.score,
-      summary: ('summary' in source ? source.summary : source.feedback) ?? '',
-      song_name: ('song_name' in source ? source.song_name : null) ?? null,
-      song_artist: ('song_artist' in source ? source.song_artist : null) ?? null,
-      feedback_items: (source.feedback_items ?? []).map(f => ({
+      summary: source.summary ?? '',
+      song_name: source.song_name ?? null,
+      song_artist: source.song_artist ?? null,
+      feedback_items: (feedbackSource.feedback_items ?? []).map(f => ({
         timestamp_seconds: f.timestamp_seconds,
         category: f.category as 'guitar' | 'vocals' | 'timing',
         severity: f.severity as 'critical' | 'improvement' | 'minor',
         title: f.title,
         action: f.action,
         description: f.description,
+        status: f.status ?? 'unfixed',
+        fix_clip_url: f.fix_clip_url,
+        fix_clip_blob_name: f.fix_clip_blob_name,
+        fix_feedback: f.fix_feedback,
+        fix_attempts: f.fix_attempts ?? 0,
       })),
       strengths: source.strengths ?? [],
       thought_signature: source.thought_signature ?? null,
+      comparison_summary: source.comparison_summary,
+      ig_postable: source.ig_postable,
+      ig_verdict: source.ig_verdict,
     };
     useAnalysisStore.getState().setAnalysisResult(result);
   }
@@ -58,19 +68,17 @@ function App() {
   const {
     sessionId, sessions, setSessions, setSessionId, loadFromBackend,
     currentVideoUrl, isRecorderOpen, autoStartRecording, recorderType,
-    recorderFocusHint, recorderSectionStart, recorderSectionEnd,
     setVideoUrl, setOriginalVideo, openRecorder, closeRecorder, switchToVideo,
     updateOriginalAnalysis, updateFinalAnalysis, setFinalVideo,
-    addPracticeClip, originalVideo, finalVideo, startNewSession,
+    originalVideo, finalVideo, startNewSession,
   } = useSessionStore();
-  const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
+  const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult,
+    fixModalOpen, fixModalFeedbackIndex, openFixModal, closeFixModal } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
-  const [originalFeedback, setOriginalFeedback] = useState<{ title: string; category: string }[]>([]);
-  const [finalFeedback, setFinalFeedback] = useState<{ title: string; category: string }[]>([]);
 
   const getSignedUrlMutation = useGetSignedUrl();
 
@@ -113,10 +121,9 @@ function App() {
     videoPlayerRef.current?.play();
   }, []);
 
-  const determineVideoType = useCallback((): 'original' | 'practice' | 'final' => {
+  const determineVideoType = useCallback((): 'original' | 'final' => {
     if (!originalVideo) return 'original';
-    if (originalVideo.score) return 'final';
-    return 'original';
+    return 'final';
   }, [originalVideo]);
 
   const runStreamingAnalysis = useCallback(async (blobName: string, videoType?: 'original' | 'practice' | 'final') => {
@@ -142,15 +149,17 @@ function App() {
             try {
               const result: AnalysisResult = JSON.parse(chunk.content);
               setAnalysisResult(result);
-              const feedbackList = result.feedback_items?.map(f => ({ title: f.title, category: f.category })) || [];
 
               if (type === 'final') {
                 updateFinalAnalysis(result.overall_score, result.thought_signature ?? undefined);
-                setFinalFeedback(feedbackList);
                 setShowComparison(true);
               } else {
                 updateOriginalAnalysis(result.overall_score, result.thought_signature ?? undefined);
-                setOriginalFeedback(feedbackList);
+                // Set feedback total/addressed from the new analysis
+                useSessionStore.setState({
+                  feedbackTotal: result.feedback_items?.length ?? 0,
+                  feedbackAddressed: 0,
+                });
               }
 
               // Refresh session list after analysis is saved
@@ -219,6 +228,10 @@ function App() {
     }
   }, [getSignedUrlMutation, setVideoUrl, setOriginalVideo, setFinalVideo, setSessionId, determineVideoType, runStreamingAnalysis]);
 
+  const handleOpenFixModal = useCallback((index: number) => {
+    openFixModal(index);
+  }, [openFixModal]);
+
   const handleNewSession = useCallback(async () => {
     try {
       const { session_id } = await createSession(USER_ID);
@@ -226,8 +239,6 @@ function App() {
       setSessionId(session_id);
       useAnalysisStore.getState().reset();
       setShowComparison(false);
-      setOriginalFeedback([]);
-      setFinalFeedback([]);
       // Refresh session list
       fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
     } catch (err) {
@@ -242,8 +253,6 @@ function App() {
       useAnalysisStore.getState().reset();
       restoreAnalysisFromSession(fullSession);
       setShowComparison(false);
-      setOriginalFeedback([]);
-      setFinalFeedback([]);
     } catch (err) {
       console.error('Failed to load session:', err);
     }
@@ -322,8 +331,6 @@ function App() {
               <div className="glass-panel p-1 rounded-2xl h-full flex flex-col justify-center">
                 {showComparison && finalVideo?.score ? (
                   <FinalComparison
-                    originalFeedback={originalFeedback}
-                    finalFeedback={finalFeedback}
                     onClose={() => setShowComparison(false)}
                   />
                 ) : (
@@ -351,6 +358,7 @@ function App() {
                   onRecordFinal={() => openRecorder(undefined, undefined, undefined, true, 'final')}
                   onSwitchTab={(tab) => switchToVideo(tab)}
                   onHighlightFeedback={(index) => useAnalysisStore.getState().setHighlightedFeedback(index)}
+                  onOpenFixModal={handleOpenFixModal}
                 />
               </div>
             </div>
@@ -380,17 +388,7 @@ function App() {
                       onUploadComplete={({ downloadUrl, blobName }) => {
                         const recordingType = recorderType;
 
-                        if (recordingType === 'practice') {
-                          addPracticeClip({
-                            url: downloadUrl,
-                            blobName,
-                            focusHint: recorderFocusHint ?? undefined,
-                            sectionStart: recorderSectionStart ?? undefined,
-                            sectionEnd: recorderSectionEnd ?? undefined,
-                          });
-                          closeRecorder();
-                          runStreamingAnalysis(blobName, 'practice');
-                        } else if (recordingType === 'final') {
+                        if (recordingType === 'final') {
                           setFinalVideo(downloadUrl, blobName);
                           closeRecorder();
                           runStreamingAnalysis(blobName, 'final');
@@ -480,12 +478,31 @@ function App() {
                 </h3>
               </div>
               <div className="flex-1 overflow-hidden bg-[var(--color-surface-mid)]">
-                <HistoryPanel onSeekTo={handleSeekTo} />
+                <HistoryPanel onSeekTo={handleSeekTo} onOpenFixModal={handleOpenFixModal} />
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Fix Modal */}
+      <FeedbackFixModal
+        isOpen={fixModalOpen}
+        feedbackIndex={fixModalFeedbackIndex}
+        feedbackItem={
+          fixModalFeedbackIndex != null && currentAnalysis
+            ? currentAnalysis.feedback_items[fixModalFeedbackIndex] ?? null
+            : null
+        }
+        onClose={closeFixModal}
+        onFixed={(index) => {
+          // Refresh session list to update sidebar
+          fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
+          closeFixModal();
+        }}
+        sessionId={sessionId}
+        originalVideoUrl={currentVideoUrl}
+      />
     </div>
   );
 }

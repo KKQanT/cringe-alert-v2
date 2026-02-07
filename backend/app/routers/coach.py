@@ -60,8 +60,8 @@ async def coach_websocket(
         # Signal client that we're ready
         await websocket.send_json({"type": "connected"})
 
-        # Send initial greeting by triggering the first model turn
-        async for event in session.send_message("Start the coaching session. Greet the user and briefly mention what you see in their performance analysis."):
+        # Send initial greeting - proactive about fix workflow
+        async for event in session.send_message("Start the coaching session. Greet the user, mention their score and key issues. Then suggest which feedback item they should fix first (pick the easiest or most impactful one). Be proactive and encouraging!"):
             await websocket.send_json(event)
 
         # Main loop: receive from client

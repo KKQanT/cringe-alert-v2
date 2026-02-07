@@ -107,8 +107,10 @@ export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSessi
                       Original
                     </span>
                   )}
-                  {session.practice_clip_count > 0 && (
-                    <span>+{session.practice_clip_count} clips</span>
+                  {session.feedback_total > 0 && (
+                    <span className="text-[var(--color-primary)]">
+                      {session.feedback_addressed}/{session.feedback_total} fixed
+                    </span>
                   )}
                   {session.has_final && (
                     <span className="flex items-center gap-1">

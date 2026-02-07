@@ -35,6 +35,10 @@ interface SessionState {
   practiceClips: PracticeClip[];
   finalVideo: SessionVideo | null;
 
+  // Feedback fix progress
+  feedbackAddressed: number;
+  feedbackTotal: number;
+
   // Current view
   activeVideoType: VideoType;
   currentVideoUrl: string | null;
@@ -80,6 +84,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   originalVideo: null,
   practiceClips: [],
   finalVideo: null,
+  feedbackAddressed: 0,
+  feedbackTotal: 0,
   activeVideoType: 'original',
   currentVideoUrl: null,
   selectedPracticeClipId: null,
@@ -99,6 +105,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     originalVideo: null,
     practiceClips: [],
     finalVideo: null,
+    feedbackAddressed: 0,
+    feedbackTotal: 0,
     activeVideoType: 'original',
     currentVideoUrl: null,
     selectedPracticeClipId: null,
@@ -152,6 +160,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       originalVideo,
       practiceClips,
       finalVideo,
+      feedbackAddressed: data.feedback_addressed ?? 0,
+      feedbackTotal: data.feedback_total ?? 0,
       activeVideoType,
       currentVideoUrl,
       selectedPracticeClipId: null,

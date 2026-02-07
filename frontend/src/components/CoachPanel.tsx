@@ -10,6 +10,7 @@ interface CoachPanelProps {
   onRecordFinal?: () => void;
   onSwitchTab?: (tab: 'original' | 'practice' | 'final') => void;
   onHighlightFeedback?: (index: number) => void;
+  onOpenFixModal?: (index: number) => void;
 }
 
 interface ChatMessage {
@@ -18,7 +19,7 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback }) => {
+export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback, onOpenFixModal }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -67,14 +68,10 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
     };
 
     switch (name) {
-      case 'start_practice': {
-        const focusHint = args.focus_hint as string | undefined;
-        const sectionStart = args.section_start as number | undefined;
-        const sectionEnd = args.section_end as number | undefined;
-        addMessage('system', `Starting practice${focusHint ? `: "${focusHint}"` : ''}`);
-        startCountdown(3, () => {
-          openRecorder(focusHint, sectionStart, sectionEnd, false, 'practice');
-        });
+      case 'open_feedback_modal': {
+        const feedbackIndex = (args.index as number) ?? 0;
+        addMessage('system', `Opening fix modal for feedback item ${feedbackIndex + 1}`);
+        onOpenFixModal?.(feedbackIndex);
         sendResult();
         break;
       }
@@ -130,7 +127,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         break;
       }
     }
-  }, [addMessage, openRecorder, onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback]);
+  }, [addMessage, openRecorder, onSeekTo, onShowOriginal, onRecordFinal, onSwitchTab, onHighlightFeedback, onOpenFixModal]);
 
   const startCountdown = (seconds: number, onComplete?: () => void) => {
     setCountdown(seconds);
@@ -205,6 +202,16 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       sendMessage();
     }
   }, [sendMessage]);
+
+  // Auto-connect when analysis completes (proactive coach)
+  const prevAnalysisRef = useRef<typeof currentAnalysis>(null);
+  useEffect(() => {
+    if (currentAnalysis && !prevAnalysisRef.current && !isConnected && !clientRef.current) {
+      // Analysis just appeared, auto-connect
+      connect();
+    }
+    prevAnalysisRef.current = currentAnalysis;
+  }, [currentAnalysis, isConnected, connect]);
 
   // Cleanup on unmount
   useEffect(() => {

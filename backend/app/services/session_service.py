@@ -26,6 +26,11 @@ class VideoFeedbackItem(BaseModel):
     title: str
     action: Optional[str] = None  # concise actionable tip
     description: str
+    status: str = 'unfixed'           # 'unfixed' | 'fixed' | 'skipped'
+    fix_clip_url: Optional[str] = None
+    fix_clip_blob_name: Optional[str] = None
+    fix_feedback: Optional[str] = None  # AI's judgment text
+    fix_attempts: int = 0
 
 
 class VideoAnalysis(BaseModel):
@@ -39,6 +44,9 @@ class VideoAnalysis(BaseModel):
     strengths: List[str] = Field(default_factory=list)
     thought_signature: Optional[str] = None
     analyzed_at: Optional[datetime] = None
+    comparison_summary: Optional[str] = None   # AI comparison (final only)
+    ig_postable: Optional[bool] = None         # Can post on IG?
+    ig_verdict: Optional[str] = None           # Funny IG verdict
 
 
 class PracticeClip(BaseModel):
@@ -69,6 +77,10 @@ class Session(BaseModel):
 
     # Computed
     improvement: Optional[int] = None  # final_score - original_score
+
+    # Fix tracking
+    feedback_addressed: int = 0
+    feedback_total: int = 0
 
 
 # ============ Firestore Operations ============
@@ -167,6 +179,9 @@ def set_original_video(
         analyzed_at=datetime.utcnow() if score else None
     )
 
+    session.feedback_total = len(feedback_items or [])
+    session.feedback_addressed = 0
+
     return update_session(session)
 
 
@@ -218,7 +233,10 @@ def set_final_video(
     song_artist: Optional[str] = None,
     feedback_items: Optional[List[dict]] = None,
     strengths: Optional[List[str]] = None,
-    thought_signature: Optional[str] = None
+    thought_signature: Optional[str] = None,
+    comparison_summary: Optional[str] = None,
+    ig_postable: Optional[bool] = None,
+    ig_verdict: Optional[str] = None,
 ) -> Session:
     """Set the final video for a session and calculate improvement."""
     session = get_session(session_id)
@@ -235,13 +253,49 @@ def set_final_video(
         feedback_items=[VideoFeedbackItem(**f) for f in (feedback_items or [])],
         strengths=strengths or [],
         thought_signature=thought_signature,
-        analyzed_at=datetime.utcnow() if score else None
+        analyzed_at=datetime.utcnow() if score else None,
+        comparison_summary=comparison_summary,
+        ig_postable=ig_postable,
+        ig_verdict=ig_verdict,
     )
-    
+
     # Calculate improvement
     if session.original_video and session.original_video.score and score:
         session.improvement = score - session.original_video.score
-    
+
+    return update_session(session)
+
+
+def update_feedback_item(
+    session_id: str,
+    feedback_index: int,
+    status: str,
+    fix_clip_url: Optional[str] = None,
+    fix_clip_blob_name: Optional[str] = None,
+    fix_feedback: Optional[str] = None,
+) -> Session:
+    """Update a specific feedback item's fix status."""
+    session = get_session(session_id)
+    if not session or not session.original_video:
+        raise ValueError(f"Session {session_id} not found or has no original video")
+
+    items = session.original_video.feedback_items
+    if feedback_index < 0 or feedback_index >= len(items):
+        raise ValueError(f"Feedback index {feedback_index} out of range (0-{len(items)-1})")
+
+    item = items[feedback_index]
+    item.status = status
+    item.fix_attempts += 1
+    if fix_clip_url:
+        item.fix_clip_url = fix_clip_url
+    if fix_clip_blob_name:
+        item.fix_clip_blob_name = fix_clip_blob_name
+    if fix_feedback:
+        item.fix_feedback = fix_feedback
+
+    # Recompute feedback_addressed
+    session.feedback_addressed = sum(1 for f in items if f.status == 'fixed')
+
     return update_session(session)
 
 
@@ -262,11 +316,21 @@ def get_session_context(session_id: str) -> dict:
         context["original_score"] = session.original_video.score
         context["original_summary"] = session.original_video.summary
         context["original_feedback"] = [
-            {"title": f.title, "category": f.category, "severity": f.severity}
-            for f in session.original_video.feedback_items
+            {
+                "index": i,
+                "title": f.title,
+                "category": f.category,
+                "severity": f.severity,
+                "description": f.description,
+                "action": f.action,
+                "status": f.status,
+            }
+            for i, f in enumerate(session.original_video.feedback_items)
         ]
         context["original_strengths"] = session.original_video.strengths
-    
+        context["feedback_addressed"] = session.feedback_addressed
+        context["feedback_total"] = session.feedback_total
+
     if session.practice_clips:
         context["practice_clips"] = [
             {
@@ -276,9 +340,9 @@ def get_session_context(session_id: str) -> dict:
             }
             for c in session.practice_clips
         ]
-    
+
     if session.final_video:
         context["final_score"] = session.final_video.score
         context["improvement"] = session.improvement
-    
+
     return context

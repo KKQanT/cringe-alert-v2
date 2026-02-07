@@ -4,12 +4,13 @@ import { CheckCircle2, Circle, ArrowRight } from 'lucide-react';
 
 /**
  * MemoryIndicator - Shows session progress through the coaching flow:
- * Upload Original → Practice → Record Final
+ * Upload Original → Fix Issues → Record Final
  */
 export const MemoryIndicator: React.FC = () => {
   const {
     originalVideo,
-    practiceClips,
+    feedbackAddressed,
+    feedbackTotal,
     finalVideo,
   } = useSessionStore();
 
@@ -20,9 +21,9 @@ export const MemoryIndicator: React.FC = () => {
       detail: originalVideo?.score != null ? `Score: ${originalVideo.score}` : null,
     },
     {
-      label: 'Practice',
-      done: practiceClips.length > 0,
-      detail: practiceClips.length > 0 ? `${practiceClips.length} clip${practiceClips.length > 1 ? 's' : ''}` : null,
+      label: 'Fix Issues',
+      done: feedbackTotal > 0 && feedbackAddressed > 0,
+      detail: feedbackTotal > 0 ? `${feedbackAddressed}/${feedbackTotal} fixed` : null,
     },
     {
       label: 'Final',

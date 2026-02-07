@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useAnalysisStore, type FeedbackItem } from '../stores/useAnalysisStore';
-import { Brain, Guitar, Mic2, Clock, Sparkles, MessageSquare, ChevronDown } from 'lucide-react';
+import { Brain, Guitar, Mic2, Clock, Sparkles, MessageSquare, ChevronDown, CheckCircle, SkipForward, Wrench } from 'lucide-react';
 import { renderWithLyrics } from '../utils/renderLyrics';
 
 interface HistoryPanelProps {
   onSeekTo?: (timestamp: number) => void;
+  onOpenFixModal?: (index: number) => void;
 }
 
 const severityColors = {
@@ -28,7 +29,7 @@ const formatTimestamp = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
+export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo, onOpenFixModal }) => {
   const { isAnalyzing, analysisStatus, thinkingContent, currentAnalysis, highlightedFeedbackIndex } = useAnalysisStore();
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 
@@ -102,16 +103,39 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
         </div>
       )}
 
+      {/* Fix Progress Bar */}
+      {currentAnalysis && currentAnalysis.feedback_items.length > 0 && (() => {
+        const total = currentAnalysis.feedback_items.length;
+        const fixed = currentAnalysis.feedback_items.filter(f => f.status === 'fixed').length;
+        const skipped = currentAnalysis.feedback_items.filter(f => f.status === 'skipped').length;
+        const addressed = fixed + skipped;
+        return (
+          <div className="px-6 py-3 border-b border-white/5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-[var(--color-text-muted)]">Fix Progress</span>
+              <span className="text-xs text-[var(--color-primary)] font-bold">{fixed}/{total} fixed</span>
+            </div>
+            <div className="h-1.5 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-green-500 to-[var(--color-primary)] transition-all duration-500"
+                style={{ width: `${total > 0 ? (addressed / total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Scrollable content: Feedback Items + Strengths */}
       <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
         <div className="space-y-3">
           {currentAnalysis?.feedback_items.map((item, index) => {
             const isExpanded = expandedCards.has(index);
+            const itemStatus = item.status ?? 'unfixed';
             return (
               <div
                 key={index}
                 ref={(el) => { if (el) feedbackRefs.current.set(index, el); else feedbackRefs.current.delete(index); }}
-                className={`w-full text-left rounded-xl border-l-4 ${severityColors[item.severity]} transition-all animate-fadeInUp shadow-sm hover:shadow-md ${highlightedFeedbackIndex === index ? 'ring-2 ring-[var(--color-primary)] shadow-[0_0_15px_var(--color-primary-glow)]' : ''}`}
+                className={`w-full text-left rounded-xl border-l-4 ${severityColors[item.severity]} transition-all animate-fadeInUp shadow-sm hover:shadow-md ${highlightedFeedbackIndex === index ? 'ring-2 ring-[var(--color-primary)] shadow-[0_0_15px_var(--color-primary-glow)]' : ''} ${itemStatus === 'fixed' ? 'opacity-70' : ''}`}
                 style={{ animationDelay: `${index * 150}ms` }}
               >
                 {/* Top section: clickable to seek */}
@@ -122,6 +146,17 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
                   <div className="flex items-center gap-2">
                     <CategoryIcon category={item.category} />
                     <span className="font-medium text-sm flex-1">{item.title}</span>
+                    {/* Status badge */}
+                    {itemStatus === 'fixed' && (
+                      <span className="flex items-center gap-1 text-xs text-green-400 bg-green-500/15 px-2 py-0.5 rounded-full">
+                        <CheckCircle className="w-3 h-3" /> Fixed
+                      </span>
+                    )}
+                    {itemStatus === 'skipped' && (
+                      <span className="flex items-center gap-1 text-xs text-gray-400 bg-gray-500/15 px-2 py-0.5 rounded-full">
+                        <SkipForward className="w-3 h-3" /> Skipped
+                      </span>
+                    )}
                     <span className="text-xs text-purple-400 font-mono flex-shrink-0">
                       {formatTimestamp(item.timestamp_seconds)}
                     </span>
@@ -135,6 +170,16 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
                       {renderWithLyrics(item.action)}
                     </p>
                   </div>
+                )}
+
+                {/* Fix this button (only for unfixed items) */}
+                {itemStatus === 'unfixed' && onOpenFixModal && (
+                  <button
+                    onClick={() => onOpenFixModal(index)}
+                    className="mx-4 mb-2 px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20 border border-[var(--color-primary)]/30 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Wrench className="w-3 h-3" /> Fix this
+                  </button>
                 )}
 
                 {/* Toggle button */}
@@ -152,6 +197,12 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo }) => {
                     <p className="text-xs text-gray-400 leading-relaxed">
                       {renderWithLyrics(item.description)}
                     </p>
+                    {/* Show fix feedback if available */}
+                    {item.fix_feedback && (
+                      <div className="mt-2 pt-2 border-t border-white/5">
+                        <p className="text-xs text-[var(--color-primary)]">AI Feedback: {item.fix_feedback}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -23,6 +23,8 @@ export interface SessionSummary {
   final_score: number | null;
   improvement: number | null;
   song_name: string | null;
+  feedback_addressed: number;
+  feedback_total: number;
 }
 
 export interface VideoAnalysisData {
@@ -39,10 +41,18 @@ export interface VideoAnalysisData {
     title: string;
     action?: string;
     description: string;
+    status?: string;
+    fix_clip_url?: string;
+    fix_clip_blob_name?: string;
+    fix_feedback?: string;
+    fix_attempts?: number;
   }>;
   strengths: string[];
   thought_signature: string | null;
   analyzed_at: string | null;
+  comparison_summary?: string;
+  ig_postable?: boolean;
+  ig_verdict?: string;
 }
 
 export interface PracticeClipData {
@@ -76,6 +86,8 @@ export interface FullSession {
   practice_clips: PracticeClipData[];
   final_video: VideoAnalysisData | null;
   improvement: number | null;
+  feedback_addressed: number;
+  feedback_total: number;
 }
 
 // ============ Session API ============
@@ -177,6 +189,56 @@ export async function* analyzeVideoStream(
 
   if (!response.ok) {
     throw new Error('Failed to start streaming analysis');
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('No response body');
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          yield data;
+        } catch (e) {
+          console.error('Failed to parse SSE data:', e);
+        }
+      }
+    }
+  }
+}
+
+// Streaming fix evaluation
+export async function* evaluateFixStream(
+  videoUrl: string,
+  sessionId: string,
+  feedbackIndex: number,
+): AsyncGenerator<{
+  type: 'status' | 'thinking' | 'complete' | 'error';
+  content: string;
+}> {
+  const response = await fetch(`${API_BASE}/api/analyze/video/fix/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      video_url: videoUrl,
+      session_id: sessionId,
+      feedback_index: feedbackIndex,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to start fix evaluation');
   }
 
   const reader = response.body?.getReader();

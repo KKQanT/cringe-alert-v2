@@ -34,6 +34,22 @@ class SessionSummary(BaseModel):
     final_score: Optional[int] = None
     improvement: Optional[int] = None
     song_name: Optional[str] = None
+    feedback_addressed: int = 0
+    feedback_total: int = 0
+
+
+class FeedbackItemResponse(BaseModel):
+    timestamp_seconds: float
+    category: str
+    severity: str
+    title: str
+    action: Optional[str] = None
+    description: str
+    status: str = 'unfixed'
+    fix_clip_url: Optional[str] = None
+    fix_clip_blob_name: Optional[str] = None
+    fix_feedback: Optional[str] = None
+    fix_attempts: int = 0
 
 
 class VideoAnalysisResponse(BaseModel):
@@ -43,10 +59,13 @@ class VideoAnalysisResponse(BaseModel):
     summary: Optional[str] = None
     song_name: Optional[str] = None
     song_artist: Optional[str] = None
-    feedback_items: List[dict] = []
+    feedback_items: List[FeedbackItemResponse] = []
     strengths: List[str] = []
     thought_signature: Optional[str] = None
     analyzed_at: Optional[str] = None
+    comparison_summary: Optional[str] = None
+    ig_postable: Optional[bool] = None
+    ig_verdict: Optional[str] = None
 
 
 class PracticeClipResponse(BaseModel):
@@ -73,6 +92,8 @@ class FullSessionResponse(BaseModel):
     practice_clips: List[PracticeClipResponse] = []
     final_video: Optional[VideoAnalysisResponse] = None
     improvement: Optional[int] = None
+    feedback_addressed: int = 0
+    feedback_total: int = 0
 
 
 class SessionContextResponse(BaseModel):
@@ -106,6 +127,8 @@ async def list_sessions(user_id: str = Query(default="1")):
             final_score=s.final_video.score if s.final_video else None,
             improvement=s.improvement,
             song_name=s.original_video.song_name if s.original_video else None,
+            feedback_addressed=s.feedback_addressed,
+            feedback_total=s.feedback_total,
         )
         for s in sessions
     ]
@@ -142,10 +165,13 @@ async def get_full_session(session_id: str):
             summary=session.original_video.summary,
             song_name=session.original_video.song_name,
             song_artist=session.original_video.song_artist,
-            feedback_items=[f.model_dump() for f in session.original_video.feedback_items],
+            feedback_items=[FeedbackItemResponse(**f.model_dump()) for f in session.original_video.feedback_items],
             strengths=session.original_video.strengths,
             thought_signature=session.original_video.thought_signature,
             analyzed_at=session.original_video.analyzed_at.isoformat() if session.original_video.analyzed_at else None,
+            comparison_summary=session.original_video.comparison_summary,
+            ig_postable=session.original_video.ig_postable,
+            ig_verdict=session.original_video.ig_verdict,
         )
 
     clips = []
@@ -186,10 +212,13 @@ async def get_full_session(session_id: str):
             summary=session.final_video.summary,
             song_name=session.final_video.song_name,
             song_artist=session.final_video.song_artist,
-            feedback_items=[f.model_dump() for f in session.final_video.feedback_items],
+            feedback_items=[FeedbackItemResponse(**f.model_dump()) for f in session.final_video.feedback_items],
             strengths=session.final_video.strengths,
             thought_signature=session.final_video.thought_signature,
             analyzed_at=session.final_video.analyzed_at.isoformat() if session.final_video.analyzed_at else None,
+            comparison_summary=session.final_video.comparison_summary,
+            ig_postable=session.final_video.ig_postable,
+            ig_verdict=session.final_video.ig_verdict,
         )
 
     return FullSessionResponse(
@@ -201,6 +230,8 @@ async def get_full_session(session_id: str):
         practice_clips=clips,
         final_video=final,
         improvement=session.improvement,
+        feedback_addressed=session.feedback_addressed,
+        feedback_total=session.feedback_total,
     )
 
 
@@ -221,6 +252,8 @@ async def get_session(session_id: str):
         final_score=session.final_video.score if session.final_video else None,
         improvement=session.improvement,
         song_name=session.original_video.song_name if session.original_video else None,
+        feedback_addressed=session.feedback_addressed,
+        feedback_total=session.feedback_total,
     )
 
 

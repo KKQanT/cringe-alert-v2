@@ -1,19 +1,15 @@
 import React from 'react';
 import { useSessionStore } from '../stores/useSessionStore';
-import { TrendingUp, TrendingDown, CheckCircle, AlertTriangle, X } from 'lucide-react';
+import { useAnalysisStore } from '../stores/useAnalysisStore';
+import { TrendingUp, TrendingDown, CheckCircle, AlertTriangle, X, Instagram } from 'lucide-react';
 
 interface FinalComparisonProps {
-  originalFeedback?: { title: string; category: string }[];
-  finalFeedback?: { title: string; category: string }[];
   onClose?: () => void;
 }
 
-export const FinalComparison: React.FC<FinalComparisonProps> = ({
-  originalFeedback = [],
-  finalFeedback = [],
-  onClose
-}) => {
+export const FinalComparison: React.FC<FinalComparisonProps> = ({ onClose }) => {
   const { originalVideo, finalVideo } = useSessionStore();
+  const { currentAnalysis } = useAnalysisStore();
 
   if (!originalVideo?.score || !finalVideo?.score) {
     return null;
@@ -22,102 +18,62 @@ export const FinalComparison: React.FC<FinalComparisonProps> = ({
   const improvement = finalVideo.score - originalVideo.score;
   const isImproved = improvement > 0;
 
-  // Compare feedback: find what was fixed vs still needs work
-  const originalIssues = new Set(originalFeedback.map(f => f.title.toLowerCase()));
-  const finalIssues = new Set(finalFeedback.map(f => f.title.toLowerCase()));
-
-  // Fixed = was in original, not in final
-  const fixed: string[] = [];
-  originalFeedback.forEach(f => {
-    if (!finalIssues.has(f.title.toLowerCase())) {
-      fixed.push(f.title);
-    }
-  });
-
-  // Still needs work = in both original and final
-  const stillNeedsWork: string[] = [];
-  originalFeedback.forEach(f => {
-    if (finalIssues.has(f.title.toLowerCase())) {
-      stillNeedsWork.push(f.title);
-    }
-  });
-
-  // New issues = in final but not original
-  const newIssues: string[] = [];
-  finalFeedback.forEach(f => {
-    if (!originalIssues.has(f.title.toLowerCase())) {
-      newIssues.push(f.title);
-    }
-  });
+  const comparisonSummary = currentAnalysis?.comparison_summary;
+  const igPostable = currentAnalysis?.ig_postable;
+  const igVerdict = currentAnalysis?.ig_verdict;
 
   return (
-    <div className="final-comparison">
-      <div className="final-comparison-header">
-        <h3>🎉 Performance Comparison</h3>
+    <div className="p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-bold text-white text-sm">Performance Comparison</h3>
         {onClose && (
-          <button className="close-btn" onClick={onClose}>
-            <X size={18} />
+          <button className="p-1 hover:bg-white/10 rounded transition-colors" onClick={onClose}>
+            <X size={16} className="text-[var(--color-text-dim)]" />
           </button>
         )}
       </div>
 
-      <div className="score-comparison">
-        <div className="score-box original-score">
-          <span className="label">Original</span>
-          <span className="score">{originalVideo.score}</span>
+      {/* Score Comparison */}
+      <div className="flex items-center justify-center gap-4">
+        <div className="text-center">
+          <p className="text-xs text-[var(--color-text-dim)] mb-1">Original</p>
+          <span className="text-2xl font-bold text-white">{originalVideo.score}</span>
         </div>
-        <div className={`improvement-arrow ${isImproved ? 'positive' : 'negative'}`}>
-          {isImproved ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-          <span className="diff">
-            {isImproved ? '+' : ''}{improvement}
-          </span>
+        <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full ${isImproved ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'}`}>
+          {isImproved ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+          <span className="font-bold text-sm">{isImproved ? '+' : ''}{improvement}</span>
         </div>
-        <div className="score-box final-score">
-          <span className="label">Final</span>
-          <span className="score">{finalVideo.score}</span>
+        <div className="text-center">
+          <p className="text-xs text-[var(--color-text-dim)] mb-1">Final</p>
+          <span className="text-2xl font-bold text-white">{finalVideo.score}</span>
         </div>
       </div>
 
       {isImproved && improvement >= 10 && (
-        <div className="celebration">
-          🔥 Amazing improvement! You crushed it!
+        <div className="text-center text-sm text-yellow-400 font-semibold">
+          Amazing improvement! You crushed it!
         </div>
       )}
 
-      <div className="feedback-comparison">
-        {fixed.length > 0 && (
-          <div className="feedback-section fixed">
-            <h4><CheckCircle size={16} /> Fixed!</h4>
-            <ul>
-              {fixed.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+      {/* AI Comparison Summary */}
+      {comparisonSummary && (
+        <div className="bg-[var(--color-surface-elevated)] rounded-xl p-3 border border-[var(--color-border)]">
+          <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">{comparisonSummary}</p>
+        </div>
+      )}
 
-        {stillNeedsWork.length > 0 && (
-          <div className="feedback-section needs-work">
-            <h4><AlertTriangle size={16} /> Still needs work</h4>
-            <ul>
-              {stillNeedsWork.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
+      {/* IG Verdict */}
+      {igVerdict && (
+        <div className={`rounded-xl p-3 border flex items-start gap-2 ${igPostable ? 'bg-green-500/10 border-green-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+          <Instagram className={`w-4 h-4 flex-shrink-0 mt-0.5 ${igPostable ? 'text-green-400' : 'text-yellow-400'}`} />
+          <div>
+            <span className={`text-xs font-bold ${igPostable ? 'text-green-400' : 'text-yellow-400'}`}>
+              {igPostable ? 'IG-Ready!' : 'Not quite IG-worthy...'}
+            </span>
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5">{igVerdict}</p>
           </div>
-        )}
-
-        {newIssues.length > 0 && (
-          <div className="feedback-section new-issues">
-            <h4>New areas to focus on</h4>
-            <ul>
-              {newIssues.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -28,49 +28,49 @@ Your personality:
 - Energetic, encouraging, and genuinely excited about helping people improve
 - Keep responses concise (2-4 sentences) unless explaining something detailed
 - Use casual, friendly language
+- Celebrate wins! When a feedback item gets fixed, cheer them on
 
 You have these tools to control the UI:
 - seek_video: Jump the video player to a specific timestamp
-- start_practice: Start a countdown then open the recorder for a practice clip
+- open_feedback_modal: Open the fix modal for a specific feedback item so the user can record a fix clip
 - show_original: Switch to the original video
 - record_final: Open recorder for the final performance take
 - show_feedback_card: Highlight a specific feedback item from the analysis
 
-Coaching workflow:
-1. Greet the user, mention their score and key issues from the analysis
-2. Go through issues one by one - use seek_video to show the problem spots
-3. Use show_feedback_card to highlight the current issue being discussed
-4. Help them practice sections using start_practice with specific focus hints
-5. When they're ready, use record_final for their final take
+Coaching workflow (FEEDBACK-CARD DRIVEN):
+1. Greet the user proactively! Mention their score, and suggest starting with the easiest/most impactful issue to fix
+2. Walk through feedback items one by one:
+   a. Use show_feedback_card to highlight the current issue
+   b. Use seek_video to show the problem spot in their video
+   c. Explain what went wrong and give a quick tip
+   d. Use open_feedback_modal to let them record a fix clip for that specific issue
+3. When they fix an item, celebrate! Then suggest the next unfixed item
+4. Track progress: mention how many items they've addressed (e.g., "3 out of 5 fixed!")
+5. When enough items are fixed (or they want to move on), suggest recording a final take with record_final
+6. If items are marked [SKIPPED], respect that and move on
 
 IMPORTANT: Always use tools with their proper parameters. For example:
 - seek_video needs timestamp_seconds (number)
-- start_practice can take focus_hint (string), section_start (number), section_end (number)
+- open_feedback_modal takes index (number, 0-based index of the feedback item)
 - show_feedback_card takes index (number, 0-based)
+- record_final can take confirmation_message (string)
 """
 
 # Tools with full parameter definitions
 COACH_TOOLS = [
     types.Tool(function_declarations=[
         types.FunctionDeclaration(
-            name="start_practice",
-            description="Start a countdown and then open the recorder for a practice clip. Use this when the user wants to practice a specific section.",
+            name="open_feedback_modal",
+            description="Open the fix modal for a specific feedback item so the user can record a short clip to fix that issue.",
             parameters=types.Schema(
                 type="OBJECT",
                 properties={
-                    "focus_hint": types.Schema(
-                        type="STRING",
-                        description="What to focus on, e.g., 'Keep tempo steady on the chorus'"
-                    ),
-                    "section_start": types.Schema(
+                    "index": types.Schema(
                         type="NUMBER",
-                        description="Start timestamp in seconds of the section to practice"
-                    ),
-                    "section_end": types.Schema(
-                        type="NUMBER",
-                        description="End timestamp in seconds of the section to practice"
+                        description="Zero-based index of the feedback item to fix"
                     ),
                 },
+                required=["index"],
             ),
         ),
         types.FunctionDeclaration(
@@ -146,15 +146,19 @@ def _build_context_message(analysis_context: dict | None) -> str:
 
         if ctx.get("original_feedback"):
             issues = []
-            for i, f in enumerate(ctx["original_feedback"]):
-                issues.append(f"  [{i}] {f['title']}: {f.get('description', '')}")
+            for f in ctx["original_feedback"]:
+                status_tag = f.get("status", "unfixed").upper()
+                idx = f.get("index", "?")
+                issues.append(f"  [{idx}] [{status_tag}] {f['title']} ({f.get('category', '')}/{f.get('severity', '')}): {f.get('description', '')}")
             parts.append("Feedback items:\n" + "\n".join(issues))
+
+        addressed = ctx.get("feedback_addressed", 0)
+        total = ctx.get("feedback_total", 0)
+        if total > 0:
+            parts.append(f"Fix progress: {addressed}/{total} items addressed")
 
         if ctx.get("original_strengths"):
             parts.append(f"Strengths: {', '.join(ctx['original_strengths'][:3])}")
-
-        if ctx.get("practice_clip_count", 0) > 0:
-            parts.append(f"Practice clips recorded: {ctx['practice_clip_count']}")
 
         if ctx.get("final_score"):
             parts.append(f"Final score: {ctx['final_score']}/100")

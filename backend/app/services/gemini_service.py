@@ -67,6 +67,73 @@ Return your analysis as JSON with this structure:
 """
 
 
+FLASH_MODEL_ID = "gemini-3-flash-preview"
+
+FIX_EVALUATION_PROMPT = """You are evaluating whether a performer has fixed a specific issue from their original performance.
+
+ORIGINAL FEEDBACK ITEM:
+- Title: {title}
+- Category: {category}
+- Severity: {severity}
+- Description: {description}
+- Action tip: {action}
+
+Watch this short clip carefully. The performer recorded this specifically to fix the issue described above.
+
+Judge whether the specific issue has been adequately addressed. Be encouraging but honest.
+
+Return your evaluation as JSON:
+{{
+  "is_fixed": true/false,
+  "explanation": "<2-3 sentences explaining your judgment>",
+  "tips": "<optional: if not fixed, give a specific tip to help them nail it>"
+}}
+"""
+
+FINAL_COMPARISON_PROMPT = """You are a multimodal AI coach doing the FINAL evaluation of a singing/guitar cover performance.
+
+CONTEXT FROM ORIGINAL PERFORMANCE:
+- Original Score: {original_score}/100
+- Original Strengths: {original_strengths}
+- Original Feedback Items (with fix status):
+{feedback_items_text}
+
+First, identify the song being performed. Use Google Search to look up the song name and original artist.
+
+Analyze both the GUITAR playing and VOCALS performance. Provide detailed feedback as in a normal analysis.
+
+ADDITIONALLY, compare this final take to the original:
+- What improved? What's still needs work?
+- Write a comparison_summary (2-3 sentences) highlighting the journey
+- Decide: is this video good enough to post on Instagram? (ig_postable: true/false)
+- Write a fun, casual ig_verdict (1-2 sentences, hackathon vibe - be funny!)
+
+When referencing specific lyrics, wrap them in <<these are the lyrics>> markers.
+
+Return as JSON:
+{{
+  "song_name": "<identified song name or Unknown>",
+  "song_artist": "<original artist or Unknown>",
+  "overall_score": <number>,
+  "summary": "<one sentence>",
+  "feedback_items": [
+    {{
+      "timestamp_seconds": <number>,
+      "category": "guitar" | "vocals" | "timing",
+      "severity": "critical" | "improvement" | "minor",
+      "title": "<short title>",
+      "action": "<one concise actionable tip, max 15 words>",
+      "description": "<detailed feedback>"
+    }}
+  ],
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "comparison_summary": "<2-3 sentence comparison to original>",
+  "ig_postable": true/false,
+  "ig_verdict": "<fun casual verdict about IG-worthiness>"
+}}
+"""
+
+
 async def upload_video_to_gemini(local_path: str, mime_type: str = "video/mp4"):
     """
     Upload a video file to Gemini Files API and wait for it to be ready.
@@ -230,13 +297,170 @@ async def analyze_video_streaming(local_mp4_path: str):
         yield {"type": "error", "content": str(e)}
 
 
-async def analyze_video_with_signature(
-    local_mp4_path: str, 
-    previous_signature: str | None = None
-):
+async def evaluate_fix_streaming(local_mp4_path: str, feedback_item: dict):
     """
-    Analyze video with thought signature support for multi-turn coaching.
-    Used in Milestone 4 for the iterative loop.
+    Evaluate a fix clip against a specific feedback item using Gemini Flash.
+    Yields SSE-formatted events.
     """
-    # TODO: Implement in Milestone 4
-    pass
+    try:
+        yield {"type": "status", "content": "Uploading clip to AI..."}
+        uploaded_file = await upload_video_to_gemini(local_mp4_path)
+
+        yield {"type": "status", "content": "Evaluating your fix..."}
+
+        prompt = FIX_EVALUATION_PROMPT.format(
+            title=feedback_item.get("title", ""),
+            category=feedback_item.get("category", ""),
+            severity=feedback_item.get("severity", ""),
+            description=feedback_item.get("description", ""),
+            action=feedback_item.get("action", ""),
+        )
+
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(),
+        )
+
+        contents = [
+            types.Part.from_uri(file_uri=uploaded_file.uri, mime_type=uploaded_file.mime_type),
+            prompt,
+        ]
+
+        response_text = ""
+
+        for chunk in client.models.generate_content_stream(
+            model=FLASH_MODEL_ID,
+            contents=contents,
+            config=config,
+        ):
+            if hasattr(chunk, 'candidates') and chunk.candidates:
+                for candidate in chunk.candidates:
+                    if hasattr(candidate, 'content') and candidate.content:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'thought') and part.thought:
+                                yield {"type": "thinking", "content": part.text or ""}
+                            elif hasattr(part, 'text') and part.text:
+                                response_text += part.text
+
+        # Parse the JSON result
+        parsed_result = None
+        try:
+            json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+            if json_match:
+                parsed_result = json.loads(json_match.group(1).strip())
+            else:
+                parsed_result = json.loads(response_text.strip())
+        except Exception as e:
+            logger.error(f"Failed to parse fix evaluation JSON: {e}")
+
+        if parsed_result:
+            yield {"type": "complete", "content": json.dumps(parsed_result)}
+        else:
+            yield {"type": "complete", "content": response_text}
+
+        # Cleanup
+        try:
+            client.files.delete(name=uploaded_file.name)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup file: {e}")
+
+    except Exception as e:
+        logger.error(f"Fix evaluation failed: {e}")
+        yield {"type": "error", "content": str(e)}
+
+
+async def analyze_final_video_streaming(local_mp4_path: str, original_context: dict):
+    """
+    Analyze a final video with comparison to the original performance.
+    Uses Gemini Pro for thorough evaluation. Yields SSE events.
+    """
+    try:
+        yield {"type": "status", "content": "Uploading video to AI..."}
+        uploaded_file = await upload_video_to_gemini(local_mp4_path)
+
+        yield {"type": "status", "content": "Analyzing final performance..."}
+
+        # Build feedback items text for the prompt
+        feedback_lines = []
+        for f in original_context.get("original_feedback", []):
+            status_tag = f.get("status", "unfixed").upper()
+            feedback_lines.append(
+                f"  [{status_tag}] {f.get('title', '')} ({f.get('category', '')}/{f.get('severity', '')}): {f.get('description', '')}"
+            )
+        feedback_items_text = "\n".join(feedback_lines) if feedback_lines else "  (no feedback items)"
+
+        prompt = FINAL_COMPARISON_PROMPT.format(
+            original_score=original_context.get("original_score", "N/A"),
+            original_strengths=", ".join(original_context.get("original_strengths", [])),
+            feedback_items_text=feedback_items_text,
+        )
+
+        config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(),
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+        )
+
+        contents = [
+            types.Part.from_uri(file_uri=uploaded_file.uri, mime_type=uploaded_file.mime_type),
+            prompt,
+        ]
+
+        response_text = ""
+        thought_text = ""
+
+        for chunk in client.models.generate_content_stream(
+            model=MODEL_ID,
+            contents=contents,
+            config=config,
+        ):
+            if hasattr(chunk, 'candidates') and chunk.candidates:
+                for candidate in chunk.candidates:
+                    if hasattr(candidate, 'content') and candidate.content:
+                        for part in candidate.content.parts:
+                            if hasattr(part, 'thought_signature') and part.thought_signature:
+                                gemini_signature = "gts_" + part.thought_signature[:16].hex()
+                                thought_text = gemini_signature
+
+                            if hasattr(part, 'thought') and part.thought:
+                                thought_text += part.text or ""
+                                yield {"type": "thinking", "content": part.text or ""}
+                            elif hasattr(part, 'text') and part.text:
+                                response_text += part.text
+                                yield {"type": "analysis", "content": part.text}
+
+        # Parse JSON
+        parsed_result = None
+        try:
+            json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+            if json_match:
+                parsed_result = json.loads(json_match.group(1).strip())
+            else:
+                parsed_result = json.loads(response_text.strip())
+        except Exception as e:
+            logger.error(f"Failed to parse final analysis JSON: {e}")
+
+        # Generate thought signature
+        import hashlib
+        thought_signature = None
+        if thought_text:
+            if thought_text.startswith("gts_"):
+                thought_signature = thought_text
+            else:
+                thought_signature = "ts_" + hashlib.sha256(thought_text.encode()).hexdigest()[:16]
+        elif response_text:
+            thought_signature = "ts_" + hashlib.sha256(response_text.encode()).hexdigest()[:16]
+
+        if parsed_result:
+            result_with_signature = {**parsed_result, "thought_signature": thought_signature}
+            yield {"type": "complete", "content": json.dumps(result_with_signature)}
+        else:
+            yield {"type": "complete", "content": response_text}
+
+        # Cleanup
+        try:
+            client.files.delete(name=uploaded_file.name)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup file: {e}")
+
+    except Exception as e:
+        logger.error(f"Final analysis failed: {e}")
+        yield {"type": "error", "content": str(e)}
