@@ -1,5 +1,9 @@
-import { useRef, useCallback, useState } from 'react';
-import { analyzeVideoStream, useGetSignedUrl, uploadFileToUrl } from './services/api';
+import { useRef, useCallback, useState, useEffect } from 'react';
+import {
+  analyzeVideoStream, useGetSignedUrl, uploadFileToUrl,
+  fetchUserSessions, fetchFullSession, createSession,
+  type FullSession,
+} from './services/api';
 import { useSessionStore } from './stores/useSessionStore';
 import { useAnalysisStore, type AnalysisResult } from './stores/useAnalysisStore';
 import { Recorder } from './components/Recorder';
@@ -17,8 +21,45 @@ import {
 } from 'lucide-react';
 import './index.css';
 
+const USER_ID = '1';
+
+function restoreAnalysisFromSession(data: FullSession) {
+  // Restore analysis store from the active video's analysis data
+  // Priority: final > original > most recent practice clip
+  const video = data.final_video ?? data.original_video;
+  const lastPractice = data.practice_clips.length > 0
+    ? data.practice_clips[data.practice_clips.length - 1]
+    : null;
+
+  const source = (video && video.score != null) ? video : lastPractice;
+
+  if (source && source.score != null) {
+    const result: AnalysisResult = {
+      overall_score: source.score,
+      summary: ('summary' in source ? source.summary : source.feedback) ?? '',
+      feedback_items: (source.feedback_items ?? []).map(f => ({
+        timestamp_seconds: f.timestamp_seconds,
+        category: f.category as 'guitar' | 'vocals' | 'timing',
+        severity: f.severity as 'critical' | 'improvement' | 'minor',
+        title: f.title,
+        description: f.description,
+      })),
+      strengths: source.strengths ?? [],
+      thought_signature: source.thought_signature ?? null,
+    };
+    useAnalysisStore.getState().setAnalysisResult(result);
+  }
+}
+
 function App() {
-  const { currentVideoUrl, isRecorderOpen, autoStartRecording, recorderType, recorderFocusHint, recorderSectionStart, recorderSectionEnd, setVideoUrl, openRecorder, closeRecorder, switchToVideo, updateOriginalAnalysis, updateFinalAnalysis, addPracticeClip, originalVideo, finalVideo } = useSessionStore();
+  const {
+    sessionId, sessions, setSessions, setSessionId, loadFromBackend,
+    currentVideoUrl, isRecorderOpen, autoStartRecording, recorderType,
+    recorderFocusHint, recorderSectionStart, recorderSectionEnd,
+    setVideoUrl, setOriginalVideo, openRecorder, closeRecorder, switchToVideo,
+    updateOriginalAnalysis, updateFinalAnalysis, setFinalVideo,
+    addPracticeClip, originalVideo, finalVideo, startNewSession,
+  } = useSessionStore();
   const { currentAnalysis, startAnalysis, setStatus, appendThinking, setAnalysisResult } = useAnalysisStore();
   const videoPlayerRef = useRef<VideoPlayerRef>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,17 +71,60 @@ function App() {
 
   const getSignedUrlMutation = useGetSignedUrl();
 
+  // On mount: restore most recent session or create new one
+  useEffect(() => {
+    let cancelled = false;
+    async function init() {
+      try {
+        const sessionList = await fetchUserSessions(USER_ID);
+        if (cancelled) return;
+        setSessions(sessionList);
+
+        if (sessionList.length > 0) {
+          const fullSession = await fetchFullSession(sessionList[0].session_id);
+          if (cancelled) return;
+          loadFromBackend(fullSession);
+          restoreAnalysisFromSession(fullSession);
+        } else {
+          const { session_id } = await createSession(USER_ID);
+          if (cancelled) return;
+          setSessionId(session_id);
+        }
+      } catch (err) {
+        console.error('Failed to restore session:', err);
+        // Fallback: create a new session
+        try {
+          const { session_id } = await createSession(USER_ID);
+          if (!cancelled) setSessionId(session_id);
+        } catch (createErr) {
+          console.error('Failed to create session:', createErr);
+        }
+      }
+    }
+    init();
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSeekTo = useCallback((timestamp: number) => {
     videoPlayerRef.current?.seekTo(timestamp);
     videoPlayerRef.current?.play();
   }, []);
 
-  const runStreamingAnalysis = useCallback(async (blobName: string) => {
+  const determineVideoType = useCallback((): 'original' | 'practice' | 'final' => {
+    if (!originalVideo) return 'original';
+    if (originalVideo.score) return 'final';
+    return 'original';
+  }, [originalVideo]);
+
+  const runStreamingAnalysis = useCallback(async (blobName: string, videoType?: 'original' | 'practice' | 'final') => {
+    const currentSessionId = useSessionStore.getState().sessionId;
+    const type = videoType ?? determineVideoType();
+
     startAnalysis();
     let analysisText = '';
 
     try {
-      for await (const chunk of analyzeVideoStream(blobName)) {
+      for await (const chunk of analyzeVideoStream(blobName, currentSessionId ?? undefined, type)) {
         switch (chunk.type) {
           case 'status':
             setStatus(chunk.content);
@@ -57,8 +141,7 @@ function App() {
               setAnalysisResult(result);
               const feedbackList = result.feedback_items?.map(f => ({ title: f.title, category: f.category })) || [];
 
-              // If we already have original video with score, this is a final analysis
-              if (originalVideo?.score) {
+              if (type === 'final') {
                 updateFinalAnalysis(result.overall_score, result.thought_signature ?? undefined);
                 setFinalFeedback(feedbackList);
                 setShowComparison(true);
@@ -66,6 +149,9 @@ function App() {
                 updateOriginalAnalysis(result.overall_score, result.thought_signature ?? undefined);
                 setOriginalFeedback(feedbackList);
               }
+
+              // Refresh session list after analysis is saved
+              fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
             } catch {
               console.error('Failed to parse analysis result:', chunk.content);
               setStatus('Analysis complete (parsing error)');
@@ -80,7 +166,7 @@ function App() {
       console.error('Streaming analysis failed:', error);
       setStatus('Analysis failed');
     }
-  }, [startAnalysis, setStatus, appendThinking, setAnalysisResult, originalVideo, updateOriginalAnalysis, updateFinalAnalysis, setOriginalFeedback, setFinalFeedback, setShowComparison]);
+  }, [startAnalysis, setStatus, appendThinking, setAnalysisResult, determineVideoType, updateOriginalAnalysis, updateFinalAnalysis, setSessions]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,6 +180,16 @@ function App() {
 
     setIsUploading(true);
     try {
+      // Ensure we have a session
+      let currentSessionId = useSessionStore.getState().sessionId;
+      if (!currentSessionId) {
+        const { session_id } = await createSession(USER_ID);
+        setSessionId(session_id);
+        currentSessionId = session_id;
+      }
+
+      const videoType = determineVideoType();
+
       const filename = `upload_${Date.now()}_${file.name}`;
       const { upload_url, download_url, filename: blobName } = await getSignedUrlMutation.mutateAsync({
         filename,
@@ -101,8 +197,16 @@ function App() {
       });
 
       await uploadFileToUrl(upload_url, file, file.type);
-      setVideoUrl(download_url);
-      runStreamingAnalysis(blobName);
+
+      if (videoType === 'original') {
+        setOriginalVideo(download_url, blobName);
+      } else if (videoType === 'final') {
+        setFinalVideo(download_url, blobName);
+      } else {
+        setVideoUrl(download_url);
+      }
+
+      runStreamingAnalysis(blobName, videoType);
     } catch (err) {
       console.error('Upload failed:', err);
       alert('Failed to upload video');
@@ -110,12 +214,47 @@ function App() {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [getSignedUrlMutation, setVideoUrl, runStreamingAnalysis]);
+  }, [getSignedUrlMutation, setVideoUrl, setOriginalVideo, setFinalVideo, setSessionId, determineVideoType, runStreamingAnalysis]);
+
+  const handleNewSession = useCallback(async () => {
+    try {
+      const { session_id } = await createSession(USER_ID);
+      startNewSession();
+      setSessionId(session_id);
+      useAnalysisStore.getState().reset();
+      setShowComparison(false);
+      setOriginalFeedback([]);
+      setFinalFeedback([]);
+      // Refresh session list
+      fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
+    } catch (err) {
+      console.error('Failed to create new session:', err);
+    }
+  }, [startNewSession, setSessionId, setSessions]);
+
+  const handleLoadSession = useCallback(async (targetSessionId: string) => {
+    try {
+      const fullSession = await fetchFullSession(targetSessionId);
+      loadFromBackend(fullSession);
+      useAnalysisStore.getState().reset();
+      restoreAnalysisFromSession(fullSession);
+      setShowComparison(false);
+      setOriginalFeedback([]);
+      setFinalFeedback([]);
+    } catch (err) {
+      console.error('Failed to load session:', err);
+    }
+  }, [loadFromBackend]);
 
   return (
     <div className="flex h-screen bg-[var(--color-background)] text-[var(--color-text)] font-sans overflow-hidden">
       {/* Sidebar - Fixed Left */}
-      <Sidebar />
+      <Sidebar
+        sessions={sessions}
+        activeSessionId={sessionId}
+        onSelectSession={handleLoadSession}
+        onNewSession={handleNewSession}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[url('/grid-pattern.svg')] bg-[length:40px_40px]">
@@ -254,7 +393,6 @@ function App() {
                         const recordingType = recorderType;
 
                         if (recordingType === 'practice') {
-                          // Add practice clip and analyze
                           addPracticeClip({
                             url: downloadUrl,
                             blobName,
@@ -263,18 +401,15 @@ function App() {
                             sectionEnd: recorderSectionEnd ?? undefined,
                           });
                           closeRecorder();
-                          // TODO: Run practice-specific analysis and notify coach
-                          runStreamingAnalysis(blobName);
+                          runStreamingAnalysis(blobName, 'practice');
                         } else if (recordingType === 'final') {
-                          // Final recording
-                          setVideoUrl(downloadUrl);
+                          setFinalVideo(downloadUrl, blobName);
                           closeRecorder();
-                          runStreamingAnalysis(blobName);
+                          runStreamingAnalysis(blobName, 'final');
                         } else {
-                          // Original (first upload)
-                          setVideoUrl(downloadUrl);
+                          setOriginalVideo(downloadUrl, blobName);
                           closeRecorder();
-                          runStreamingAnalysis(blobName);
+                          runStreamingAnalysis(blobName, 'original');
                         }
                       }}
                     />

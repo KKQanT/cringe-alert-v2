@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { SessionSummary, FullSession } from '../services/api';
 
 // Video types in the app
 export type VideoType = 'original' | 'practice' | 'final';
@@ -25,6 +26,10 @@ interface SessionState {
   // Session
   sessionId: string | null;
 
+  // Session list (for sidebar)
+  sessions: SessionSummary[];
+  setSessions: (sessions: SessionSummary[]) => void;
+
   // Videos
   originalVideo: SessionVideo | null;
   practiceClips: PracticeClip[];
@@ -45,6 +50,10 @@ interface SessionState {
 
   // Actions
   startNewSession: () => void;
+  setSessionId: (id: string) => void;
+
+  // Load from backend
+  loadFromBackend: (data: FullSession) => void;
 
   // Video actions
   setOriginalVideo: (url: string, blobName: string) => void;
@@ -67,6 +76,7 @@ interface SessionState {
 export const useSessionStore = create<SessionState>((set, get) => ({
   // Initial state
   sessionId: null,
+  sessions: [],
   originalVideo: null,
   practiceClips: [],
   finalVideo: null,
@@ -80,8 +90,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   recorderSectionEnd: null,
   recorderType: null,
 
+  setSessions: (sessions) => set({ sessions }),
+
+  setSessionId: (id) => set({ sessionId: id }),
+
   startNewSession: () => set({
-    sessionId: `session_${Date.now()}`,
+    sessionId: null,
     originalVideo: null,
     practiceClips: [],
     finalVideo: null,
@@ -90,6 +104,60 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     selectedPracticeClipId: null,
     isRecorderOpen: false,
   }),
+
+  loadFromBackend: (data: FullSession) => {
+    const originalVideo: SessionVideo | null = data.original_video
+      ? {
+          url: data.original_video.url,
+          blobName: data.original_video.blob_name,
+          score: data.original_video.score ?? undefined,
+          thoughtSignature: data.original_video.thought_signature ?? undefined,
+          createdAt: new Date(data.created_at),
+        }
+      : null;
+
+    const practiceClips: PracticeClip[] = data.practice_clips.map((c, i) => ({
+      id: `clip_${i}_${c.clip_number}`,
+      url: c.url,
+      blobName: c.blob_name,
+      sectionStart: c.section_start ?? undefined,
+      sectionEnd: c.section_end ?? undefined,
+      focusHint: c.focus_hint ?? undefined,
+      createdAt: new Date(c.created_at),
+    }));
+
+    const finalVideo: SessionVideo | null = data.final_video
+      ? {
+          url: data.final_video.url,
+          blobName: data.final_video.blob_name,
+          score: data.final_video.score ?? undefined,
+          thoughtSignature: data.final_video.thought_signature ?? undefined,
+          createdAt: new Date(data.final_video.analyzed_at ?? data.updated_at),
+        }
+      : null;
+
+    // Determine which video to show
+    let activeVideoType: VideoType = 'original';
+    let currentVideoUrl: string | null = null;
+    if (finalVideo) {
+      activeVideoType = 'final';
+      currentVideoUrl = finalVideo.url;
+    } else if (originalVideo) {
+      activeVideoType = 'original';
+      currentVideoUrl = originalVideo.url;
+    }
+
+    set({
+      sessionId: data.session_id,
+      originalVideo,
+      practiceClips,
+      finalVideo,
+      activeVideoType,
+      currentVideoUrl,
+      selectedPracticeClipId: null,
+      isRecorderOpen: false,
+    });
+  },
 
   setOriginalVideo: (url, blobName) => set({
     originalVideo: {

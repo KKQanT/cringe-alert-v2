@@ -1,38 +1,39 @@
-import { useState } from 'react';
-import { Siren, LayoutDashboard, Activity, Clock, Settings, UserCircle, ChevronRight } from 'lucide-react';
+import { Siren, LayoutDashboard, Clock, Settings, UserCircle, Plus, Film, Trophy } from 'lucide-react';
+import type { SessionSummary } from '../services/api';
 
-type NavItemProp = {
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  hasSubmenu?: boolean;
-};
+interface SidebarProps {
+  sessions: SessionSummary[];
+  activeSessionId: string | null;
+  onSelectSession: (sessionId: string) => void;
+  onNewSession: () => void;
+}
 
-const NavItem = ({ icon, label, active, hasSubmenu }: NavItemProp) => (
-  <div
-    className={`
-      flex items-center justify-between px-4 py-3 rounded-xl transition-all cursor-pointer group
-      ${active
-        ? 'bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary-glow)]'
-        : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-white'
-      }
-    `}
-  >
-    <div className="flex items-center gap-3">
-      <div className={`${active ? 'text-white' : 'text-[var(--color-text-muted)] group-hover:text-white transition-colors'}`}>
-        {icon}
-      </div>
-      <span className="font-medium text-sm">{label}</span>
-    </div>
-    {hasSubmenu && (
-      <ChevronRight className="w-4 h-4 opacity-50" />
-    )}
-  </div>
-);
+function formatDate(isoString: string): string {
+  const d = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
 
-export function Sidebar() {
-  const [activeItem] = useState('Home');
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
+function ScoreBadge({ score }: { score: number | null }) {
+  if (score == null) return null;
+  const color = score > 80 ? 'text-red-400 bg-red-500/10' : score > 50 ? 'text-yellow-400 bg-yellow-500/10' : 'text-green-400 bg-green-500/10';
+  return (
+    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${color}`}>
+      {score}
+    </span>
+  );
+}
+
+export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSession }: SidebarProps) {
   return (
     <aside className="w-64 h-screen sticky top-0 bg-[var(--color-surface-base)] border-r border-[var(--color-border)] flex flex-col p-6 overflow-y-auto z-50">
       {/* Logo */}
@@ -47,32 +48,91 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2">
+      <nav className="flex-1 flex flex-col space-y-2 min-h-0">
         <div className="mb-2 px-4 text-xs font-bold text-[var(--color-text-dim)] uppercase tracking-wider">Menu</div>
 
-        <NavItem
-          icon={<LayoutDashboard className="w-5 h-5" />}
-          label="Home"
-          active={activeItem === 'Home'}
-        />
+        {/* Home / New Session */}
+        <div
+          onClick={onNewSession}
+          className="flex items-center justify-between px-4 py-3 rounded-xl transition-all cursor-pointer group text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-white"
+        >
+          <div className="flex items-center gap-3">
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="font-medium text-sm">New Session</span>
+          </div>
+          <Plus className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" />
+        </div>
 
-        <NavItem
-          icon={<Activity className="w-5 h-5" />}
-          label="Analysis"
-          hasSubmenu
-        />
+        {/* History Section */}
+        <div className="pt-4 mb-2 px-4 text-xs font-bold text-[var(--color-text-dim)] uppercase tracking-wider flex items-center gap-2">
+          <Clock className="w-3.5 h-3.5" />
+          History
+        </div>
 
-        <NavItem
-          icon={<Clock className="w-5 h-5" />}
-          label="History"
-        />
+        {/* Session List */}
+        <div className="flex-1 overflow-y-auto space-y-1 custom-scrollbar min-h-0">
+          {sessions.length === 0 && (
+            <div className="px-4 py-3 text-xs text-[var(--color-text-dim)]">
+              No sessions yet. Upload a video to get started.
+            </div>
+          )}
+          {sessions.map((session) => {
+            const isActive = session.session_id === activeSessionId;
+            return (
+              <div
+                key={session.session_id}
+                onClick={() => onSelectSession(session.session_id)}
+                className={`
+                  px-4 py-3 rounded-xl transition-all cursor-pointer group
+                  ${isActive
+                    ? 'bg-[var(--color-primary)]/15 border border-[var(--color-primary)]/30 text-white'
+                    : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-white'
+                  }
+                `}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <Film className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="text-sm font-medium truncate">
+                      {formatDate(session.created_at)}
+                    </span>
+                  </div>
+                  <ScoreBadge score={session.original_score} />
+                </div>
+                <div className="flex items-center gap-2 pl-5.5 text-xs text-[var(--color-text-dim)]">
+                  {session.has_original && (
+                    <span className="flex items-center gap-1">
+                      Original
+                    </span>
+                  )}
+                  {session.practice_clip_count > 0 && (
+                    <span>+{session.practice_clip_count} clips</span>
+                  )}
+                  {session.has_final && (
+                    <span className="flex items-center gap-1">
+                      <Trophy className="w-3 h-3 text-[var(--color-secondary)]" />
+                      Final
+                    </span>
+                  )}
+                  {session.improvement != null && (
+                    <span className={session.improvement > 0 ? 'text-green-400' : 'text-red-400'}>
+                      {session.improvement > 0 ? '+' : ''}{session.improvement}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-        <div className="pt-6 mb-2 px-4 text-xs font-bold text-[var(--color-text-dim)] uppercase tracking-wider">Settings</div>
+        <div className="pt-4 mb-2 px-4 text-xs font-bold text-[var(--color-text-dim)] uppercase tracking-wider">Settings</div>
 
-        <NavItem
-          icon={<Settings className="w-5 h-5" />}
-          label="Configurations"
-        />
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl transition-all cursor-pointer group text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-white">
+          <div className="flex items-center gap-3">
+            <Settings className="w-5 h-5" />
+            <span className="font-medium text-sm">Configurations</span>
+          </div>
+        </div>
       </nav>
 
       {/* User / Help Section */}

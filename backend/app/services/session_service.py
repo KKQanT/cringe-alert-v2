@@ -46,20 +46,24 @@ class PracticeClip(BaseModel):
     section_end: Optional[float] = None
     focus_hint: Optional[str] = None
     feedback: Optional[str] = None
+    score: Optional[int] = None
+    feedback_items: List[VideoFeedbackItem] = Field(default_factory=list)
+    strengths: List[str] = Field(default_factory=list)
     thought_signature: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Session(BaseModel):
     session_id: str
+    user_id: str = "anonymous"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     # Videos
     original_video: Optional[VideoAnalysis] = None
     practice_clips: List[PracticeClip] = Field(default_factory=list)
     final_video: Optional[VideoAnalysis] = None
-    
+
     # Computed
     improvement: Optional[int] = None  # final_score - original_score
 
@@ -76,16 +80,35 @@ def _get_db():
     return firestore.client()
 
 
-def create_session(session_id: str) -> Session:
+def create_session(session_id: str, user_id: str = "1") -> Session:
     """Create a new coaching session."""
     db = _get_db()
-    session = Session(session_id=session_id)
-    
+    session = Session(session_id=session_id, user_id=user_id)
+
     db.collection(SESSIONS_COLLECTION).document(session_id).set(
         session.model_dump(mode="json")
     )
-    logger.info(f"Created session: {session_id}")
+    logger.info(f"Created session: {session_id} for user: {user_id}")
     return session
+
+
+def list_user_sessions(user_id: str, limit: int = 20) -> List[Session]:
+    """List sessions for a user, ordered by most recent first."""
+    db = _get_db()
+    query = (
+        db.collection(SESSIONS_COLLECTION)
+        .where("user_id", "==", user_id)
+        .order_by("created_at", direction=firestore.Query.DESCENDING)
+        .limit(limit)
+    )
+
+    sessions = []
+    for doc in query.stream():
+        try:
+            sessions.append(Session(**doc.to_dict()))
+        except Exception as e:
+            logger.warning(f"Failed to parse session {doc.id}: {e}")
+    return sessions
 
 
 def get_session(session_id: str) -> Optional[Session]:
@@ -148,15 +171,18 @@ def add_practice_clip(
     section_end: Optional[float] = None,
     focus_hint: Optional[str] = None,
     feedback: Optional[str] = None,
+    score: Optional[int] = None,
+    feedback_items: Optional[List[dict]] = None,
+    strengths: Optional[List[str]] = None,
     thought_signature: Optional[str] = None
 ) -> Session:
     """Add a practice clip to a session."""
     session = get_session(session_id)
     if not session:
         session = create_session(session_id)
-    
+
     clip_number = len(session.practice_clips) + 1
-    
+
     clip = PracticeClip(
         clip_number=clip_number,
         url=url,
@@ -165,7 +191,10 @@ def add_practice_clip(
         section_end=section_end,
         focus_hint=focus_hint,
         feedback=feedback,
-        thought_signature=thought_signature
+        score=score,
+        feedback_items=[VideoFeedbackItem(**f) for f in (feedback_items or [])],
+        strengths=strengths or [],
+        thought_signature=thought_signature,
     )
     
     session.practice_clips.append(clip)
