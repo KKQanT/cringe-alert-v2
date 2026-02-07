@@ -1,4 +1,4 @@
-import { Siren, LayoutDashboard, Clock, Settings, UserCircle, Plus, Film, Trophy } from 'lucide-react';
+import { Siren, LayoutDashboard, Clock, UserCircle, Plus, Film, Trophy } from 'lucide-react';
 import type { SessionSummary } from '../services/api';
 
 interface SidebarProps {
@@ -125,14 +125,6 @@ export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSessi
           })}
         </div>
 
-        <div className="pt-4 mb-2 px-4 text-xs font-bold text-[var(--color-text-dim)] uppercase tracking-wider">Settings</div>
-
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl transition-all cursor-pointer group text-[var(--color-text-muted)] hover:bg-[var(--color-surface-elevated)] hover:text-white">
-          <div className="flex items-center gap-3">
-            <Settings className="w-5 h-5" />
-            <span className="font-medium text-sm">Configurations</span>
-          </div>
-        </div>
       </nav>
 
       {/* User / Help Section */}

@@ -16,7 +16,7 @@ import { MemoryIndicator } from './components/MemoryIndicator';
 import { FinalComparison } from './components/FinalComparison';
 import { Sidebar } from './components/Sidebar';
 import {
-  Search, Sparkles, TrendingDown, Mic, BarChart2, Upload, Download,
+  TrendingDown, Mic, BarChart2, Upload, Download,
   Circle, Film
 } from 'lucide-react';
 import './index.css';
@@ -258,34 +258,13 @@ function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[url('/grid-pattern.svg')] bg-[length:40px_40px]">
-        {/* Top Header / Breadcrumb Bar */}
+        {/* Top Header */}
         <header className="px-8 py-5 flex items-center justify-between bg-[var(--color-background)]/80 backdrop-blur-md border-b border-[var(--color-border)] sticky top-0 z-40">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Performance Dashboard</h2>
-            <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mt-1">
-              <span>Overview</span>
-              <span>/</span>
-              <span className="text-[var(--color-primary)] font-medium">Session Analysis</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            {/* Search Bar */}
-            <div className="relative hidden md:group md:block">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--color-text-dim)]">
-                <Search className="w-5 h-5" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search analysis..."
-                className="bg-[var(--color-surface-base)] border border-[var(--color-border)] rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all w-64 group-hover:w-80 shadow-inner"
-              />
-            </div>
-
-            <button className="px-6 py-2.5 bg-gradient-to-r from-[var(--color-primary)] to-[#0891b2] text-white rounded-xl font-bold hover:shadow-[0_0_20px_var(--color-primary-glow)] transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              <span>Judge My Performance</span>
-            </button>
+            <h2 className="text-2xl font-bold text-white tracking-tight">Session Analysis</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">
+              {sessionId ? `Session ${sessionId.slice(0, 8)}` : 'Loading...'}
+            </p>
           </div>
         </header>
 
