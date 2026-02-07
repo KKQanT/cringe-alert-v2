@@ -94,7 +94,9 @@ export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSessi
                   <div className="flex items-center gap-2">
                     <Film className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="text-sm font-medium truncate">
-                      {formatDate(session.created_at)}
+                      {session.song_name && session.song_name !== 'Unknown'
+                        ? session.song_name
+                        : formatDate(session.created_at)}
                     </span>
                   </div>
                   <ScoreBadge score={session.original_score} />

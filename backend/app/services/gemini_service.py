@@ -24,12 +24,17 @@ MODEL_ID = "gemini-3-pro-preview"
 
 ANALYSIS_PROMPT = """You are a multimodal AI coach analyzing a singing/guitar cover performance video.
 
+First, identify the song being performed. Use Google Search to look up the song name and original artist based on the melody, lyrics, and playing style you observe. If you cannot confidently identify the song even after searching, use "Unknown" for both fields.
+
 Analyze both the GUITAR playing and VOCALS performance. For each issue found, provide:
 1. A timestamp in seconds (e.g., 45.5 for 0:45)
 2. Category: 'guitar', 'vocals', or 'timing'
 3. Severity: 'critical', 'improvement', or 'minor'
 4. A short title
-5. A description of what happened and how to improve
+5. An action: a single concise actionable improvement tip (max 15 words)
+6. A description: detailed explanation of what happened and technique to improve
+
+When referencing specific lyrics the performer sang, always wrap them in double angle bracket markers like this: <<these are the lyrics>>. This applies to both "action" and "description" fields. Only wrap actual sung lyrics, not general musical terms.
 
 Also provide:
 - An overall score from 0-100
@@ -43,15 +48,18 @@ Think through your analysis step by step, considering:
 
 Return your analysis as JSON with this structure:
 {
+  "song_name": "<identified song name or Unknown>",
+  "song_artist": "<original artist or Unknown>",
   "overall_score": <number>,
-  "summary": "<one sentence>", 
+  "summary": "<one sentence>",
   "feedback_items": [
     {
       "timestamp_seconds": <number>,
       "category": "guitar" | "vocals" | "timing",
       "severity": "critical" | "improvement" | "minor",
       "title": "<short title>",
-      "description": "<detailed feedback>"
+      "action": "<one concise actionable tip, max 15 words>",
+      "description": "<detailed feedback with <<lyrics>> markers where applicable>"
     }
   ],
   "strengths": ["<strength 1>", "<strength 2>"]
@@ -120,7 +128,8 @@ async def analyze_video_streaming(local_mp4_path: str):
         
         # Configure with thinking enabled (no budget limit)
         config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig()  # Default: unlimited thinking
+            thinking_config=types.ThinkingConfig(),  # Default: unlimited thinking
+            tools=[types.Tool(google_search=types.GoogleSearch())],  # Song identification
         )
         
         # Create the content with video and prompt

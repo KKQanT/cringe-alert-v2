@@ -37,11 +37,14 @@ function restoreAnalysisFromSession(data: FullSession) {
     const result: AnalysisResult = {
       overall_score: source.score,
       summary: ('summary' in source ? source.summary : source.feedback) ?? '',
+      song_name: ('song_name' in source ? source.song_name : null) ?? null,
+      song_artist: ('song_artist' in source ? source.song_artist : null) ?? null,
       feedback_items: (source.feedback_items ?? []).map(f => ({
         timestamp_seconds: f.timestamp_seconds,
         category: f.category as 'guitar' | 'vocals' | 'timing',
         severity: f.severity as 'critical' | 'improvement' | 'minor',
         title: f.title,
+        action: f.action,
         description: f.description,
       })),
       strengths: source.strengths ?? [],
@@ -261,9 +264,15 @@ function App() {
         {/* Top Header */}
         <header className="px-8 py-5 flex items-center justify-between bg-[var(--color-background)]/80 backdrop-blur-md border-b border-[var(--color-border)] sticky top-0 z-40">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Session Analysis</h2>
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              {currentAnalysis?.song_name && currentAnalysis.song_name !== 'Unknown'
+                ? currentAnalysis.song_name
+                : 'Session Analysis'}
+            </h2>
             <p className="text-sm text-[var(--color-text-muted)] mt-1">
-              {sessionId ? `Session ${sessionId.slice(0, 8)}` : 'Loading...'}
+              {currentAnalysis?.song_artist && currentAnalysis.song_artist !== 'Unknown'
+                ? `by ${currentAnalysis.song_artist}`
+                : sessionId ? `Session ${sessionId.slice(0, 8)}` : 'Loading...'}
             </p>
           </div>
         </header>

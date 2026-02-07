@@ -10,5 +10,5 @@ dependencies = [
     "python-multipart>=0.0.22",
     "uvicorn[standard]>=0.40.0",
     "firebase-admin>=6.6.0",
-    "google-genai>=0.3.0",
+    "google-genai>=1.51.0",
 ]

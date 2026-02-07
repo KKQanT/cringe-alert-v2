@@ -5,12 +5,15 @@ export interface FeedbackItem {
   category: 'guitar' | 'vocals' | 'timing';
   severity: 'critical' | 'improvement' | 'minor';
   title: string;
+  action?: string;
   description: string;
 }
 
 export interface AnalysisResult {
   overall_score: number;
   summary: string;
+  song_name: string | null;
+  song_artist: string | null;
   feedback_items: FeedbackItem[];
   strengths: string[];
   thought_signature: string | null;

@@ -24,6 +24,7 @@ class VideoFeedbackItem(BaseModel):
     category: str  # 'guitar', 'vocals', 'timing'
     severity: str  # 'critical', 'improvement', 'minor'
     title: str
+    action: Optional[str] = None  # concise actionable tip
     description: str
 
 
@@ -32,6 +33,8 @@ class VideoAnalysis(BaseModel):
     blob_name: str
     score: Optional[int] = None
     summary: Optional[str] = None
+    song_name: Optional[str] = None
+    song_artist: Optional[str] = None
     feedback_items: List[VideoFeedbackItem] = Field(default_factory=list)
     strengths: List[str] = Field(default_factory=list)
     thought_signature: Optional[str] = None
@@ -135,11 +138,13 @@ def update_session(session: Session) -> Session:
 
 
 def set_original_video(
-    session_id: str, 
-    url: str, 
+    session_id: str,
+    url: str,
     blob_name: str,
     score: Optional[int] = None,
     summary: Optional[str] = None,
+    song_name: Optional[str] = None,
+    song_artist: Optional[str] = None,
     feedback_items: Optional[List[dict]] = None,
     strengths: Optional[List[str]] = None,
     thought_signature: Optional[str] = None
@@ -148,18 +153,20 @@ def set_original_video(
     session = get_session(session_id)
     if not session:
         session = create_session(session_id)
-    
+
     session.original_video = VideoAnalysis(
         url=url,
         blob_name=blob_name,
         score=score,
         summary=summary,
+        song_name=song_name,
+        song_artist=song_artist,
         feedback_items=[VideoFeedbackItem(**f) for f in (feedback_items or [])],
         strengths=strengths or [],
         thought_signature=thought_signature,
         analyzed_at=datetime.utcnow() if score else None
     )
-    
+
     return update_session(session)
 
 
@@ -207,6 +214,8 @@ def set_final_video(
     blob_name: str,
     score: Optional[int] = None,
     summary: Optional[str] = None,
+    song_name: Optional[str] = None,
+    song_artist: Optional[str] = None,
     feedback_items: Optional[List[dict]] = None,
     strengths: Optional[List[str]] = None,
     thought_signature: Optional[str] = None
@@ -215,12 +224,14 @@ def set_final_video(
     session = get_session(session_id)
     if not session:
         session = create_session(session_id)
-    
+
     session.final_video = VideoAnalysis(
         url=url,
         blob_name=blob_name,
         score=score,
         summary=summary,
+        song_name=song_name,
+        song_artist=song_artist,
         feedback_items=[VideoFeedbackItem(**f) for f in (feedback_items or [])],
         strengths=strengths or [],
         thought_signature=thought_signature,

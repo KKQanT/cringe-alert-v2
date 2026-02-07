@@ -89,6 +89,8 @@ async def analyze_video_stream(request: AnalyzeRequest):
                         score = result.get("overall_score")
                         summary = result.get("summary")
                         thought_sig = result.get("thought_signature")
+                        song_name = result.get("song_name")
+                        song_artist = result.get("song_artist")
 
                         if request.video_type == "original":
                             session_service.set_original_video(
@@ -97,6 +99,8 @@ async def analyze_video_stream(request: AnalyzeRequest):
                                 blob_name=blob_name,
                                 score=score,
                                 summary=summary,
+                                song_name=song_name,
+                                song_artist=song_artist,
                                 feedback_items=feedback_items,
                                 strengths=strengths,
                                 thought_signature=thought_sig,
@@ -119,6 +123,8 @@ async def analyze_video_stream(request: AnalyzeRequest):
                                 blob_name=blob_name,
                                 score=score,
                                 summary=summary,
+                                song_name=song_name,
+                                song_artist=song_artist,
                                 feedback_items=feedback_items,
                                 strengths=strengths,
                                 thought_signature=thought_sig,

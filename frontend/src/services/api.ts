@@ -22,6 +22,7 @@ export interface SessionSummary {
   original_score: number | null;
   final_score: number | null;
   improvement: number | null;
+  song_name: string | null;
 }
 
 export interface VideoAnalysisData {
@@ -29,11 +30,14 @@ export interface VideoAnalysisData {
   blob_name: string;
   score: number | null;
   summary: string | null;
+  song_name: string | null;
+  song_artist: string | null;
   feedback_items: Array<{
     timestamp_seconds: number;
     category: string;
     severity: string;
     title: string;
+    action?: string;
     description: string;
   }>;
   strengths: string[];
@@ -55,6 +59,7 @@ export interface PracticeClipData {
     category: string;
     severity: string;
     title: string;
+    action?: string;
     description: string;
   }>;
   strengths: string[];
