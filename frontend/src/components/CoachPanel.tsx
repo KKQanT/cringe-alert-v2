@@ -251,7 +251,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-[200px] max-h-[calc(100vh-24rem)] p-6">
+      <div className="flex-1 overflow-y-auto space-y-4 mb-4 p-6 custom-scrollbar">
         {messages.length === 0 && !isConnected && (
           <div className="flex flex-col items-center justify-center h-full text-center py-8 opacity-50">
             <MessageSquare className="w-12 h-12 mb-3 text-[var(--color-primary)]" />

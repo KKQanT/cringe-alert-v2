@@ -325,7 +325,7 @@ function App() {
           </div>
 
           {/* Main Workspace Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[600px]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-20rem)]">
 
             {/* Left Column: Coach (3 cols) */}
             <div className="lg:col-span-3 flex flex-col h-full rounded-2xl overflow-hidden glass-panel border-[var(--color-border)]">
