@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSessionStore } from '../stores/useSessionStore';
+import { Brain } from 'lucide-react';
 
 /**
  * MemoryIndicator - Shows what the Coach remembers about the current session
@@ -24,58 +25,60 @@ export const MemoryIndicator: React.FC = () => {
 
   return (
     <div className="memory-indicator">
-      <div className="memory-header">
-        <span className="memory-icon">🧠</span>
-        <span className="memory-title">Coach Memory</span>
-        <span className={`memory-status ${hasMemory ? 'active' : 'inactive'}`}>
+      <div className="memory-header flex items-center gap-2 mb-2">
+        <Brain className="w-5 h-5 text-[var(--color-primary)]" />
+        <span className="memory-title font-semibold text-white">Coach Memory</span>
+        <span className={`memory-status text-xs px-2 py-0.5 rounded-full ${hasMemory ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'} ml-auto`}>
           {hasMemory ? '● Active' : '○ Waiting'}
         </span>
       </div>
 
       {hasMemory && (
-        <div className="memory-content">
+        <div className="memory-content space-y-2">
           {/* Original Score */}
           {originalVideo?.score !== undefined && (
-            <div className="memory-item">
-              <span className="memory-label">Original Score:</span>
-              <span className="memory-value score">{originalVideo.score}/100</span>
+            <div className="memory-item flex justify-between text-sm">
+              <span className="memory-label text-[var(--color-text-muted)]">Original Score:</span>
+              <span className="memory-value score font-mono text-white">{originalVideo.score}/100</span>
             </div>
           )}
 
           {/* Practice Clips */}
           {practiceCount > 0 && (
-            <div className="memory-item">
-              <span className="memory-label">Practice Clips:</span>
-              <span className="memory-value">{practiceCount} recorded</span>
+            <div className="memory-item flex justify-between text-sm">
+              <span className="memory-label text-[var(--color-text-muted)]">Practice Clips:</span>
+              <span className="memory-value text-white">{practiceCount} recorded</span>
             </div>
           )}
 
           {/* Final Score */}
           {finalVideo?.score !== undefined && (
-            <div className="memory-item">
-              <span className="memory-label">Final Score:</span>
-              <span className="memory-value score">{finalVideo.score}/100</span>
-              {originalVideo?.score !== undefined && (
-                <span className={`improvement ${finalVideo.score > originalVideo.score ? 'positive' : 'negative'}`}>
-                  {finalVideo.score > originalVideo.score ? '+' : ''}
-                  {finalVideo.score - originalVideo.score}
-                </span>
-              )}
+            <div className="memory-item flex justify-between text-sm">
+              <span className="memory-label text-[var(--color-text-muted)]">Final Score:</span>
+              <div className="flex items-center gap-2">
+                <span className="memory-value score font-mono text-white">{finalVideo.score}/100</span>
+                {originalVideo?.score !== undefined && (
+                  <span className={`text-xs ${finalVideo.score > originalVideo.score ? 'text-green-400' : 'text-red-400'}`}>
+                    {finalVideo.score > originalVideo.score ? '+' : ''}
+                    {finalVideo.score - originalVideo.score}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
           {/* Thought Signature (truncated) */}
           {signature && (
-            <div className="memory-signature">
-              <span className="signature-label">Context:</span>
-              <code className="signature-value">{signature.slice(0, 20)}...</code>
+            <div className="memory-signature text-xs mt-2 p-2 bg-black/20 rounded">
+              <span className="signature-label text-[var(--color-text-dim)] block mb-1">Context:</span>
+              <code className="signature-value text-[var(--color-primary)] font-mono break-all">{signature.slice(0, 30)}...</code>
             </div>
           )}
         </div>
       )}
 
       {!hasMemory && (
-        <div className="memory-waiting">
+        <div className="memory-waiting text-center text-xs text-[var(--color-text-dim)] py-2">
           Upload a video to start coaching session
         </div>
       )}

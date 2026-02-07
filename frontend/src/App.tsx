@@ -9,6 +9,11 @@ import { FeedbackTimeline } from './components/FeedbackTimeline';
 import { CoachPanel } from './components/CoachPanel';
 import { VideoTabs } from './components/VideoTabs';
 import { MemoryIndicator } from './components/MemoryIndicator';
+import { Sidebar } from './components/Sidebar';
+import {
+  Search, Sparkles, TrendingDown, Mic, BarChart2, Video, Upload, Download,
+  Circle, Play, Film
+} from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -43,11 +48,9 @@ function App() {
             analysisText += chunk.content;
             break;
           case 'complete':
-            // Backend sends parsed JSON in the content field
             try {
               const result: AnalysisResult = JSON.parse(chunk.content);
               setAnalysisResult(result);
-              // Store score and thought signature in session
               if (result.overall_score !== undefined) {
                 updateOriginalAnalysis(result.overall_score, result.thought_signature ?? undefined);
               }
@@ -71,7 +74,6 @@ function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const validTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/mov'];
     if (!validTypes.includes(file.type)) {
       alert('Please upload a valid video file (MP4, WebM, or MOV)');
@@ -80,17 +82,13 @@ function App() {
 
     setIsUploading(true);
     try {
-      // 1. Get signed URL
       const filename = `upload_${Date.now()}_${file.name}`;
       const { upload_url, download_url, filename: blobName } = await getSignedUrlMutation.mutateAsync({
         filename,
         contentType: file.type
       });
 
-      // 2. Upload to Firebase
       await uploadFileToUrl(upload_url, file, file.type);
-
-      // 3. Set video and analyze
       setVideoUrl(download_url);
       runStreamingAnalysis(blobName);
     } catch (err) {
@@ -98,133 +96,226 @@ function App() {
       alert('Failed to upload video');
     } finally {
       setIsUploading(false);
-      // Reset file input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }, [getSignedUrlMutation, setVideoUrl, runStreamingAnalysis]);
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] text-white">
-      {/* Header */}
-      <header className="border-b border-white/10 py-4 px-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-            🚨 Cringe Alert
-          </h1>
-          <button className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg shadow-purple-500/25">
-            Judge My Performance
-          </button>
-        </div>
-      </header>
+    <div className="flex h-screen bg-[var(--color-background)] text-[var(--color-text)] font-sans overflow-hidden">
+      {/* Sidebar - Fixed Left */}
+      <Sidebar />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-          {/* Coach Panel */}
-          <CoachPanel
-            onSeekTo={handleSeekTo}
-            onShowOriginal={() => {
-              // TODO: Switch to original video when we implement tabbed player
-              console.log('Switch to original video');
-            }}
-            onRecordFinal={() => {
-              // Open recorder for final take with auto-start
-              openRecorder(undefined, undefined, undefined, true);
-            }}
-          />
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 bg-[url('/grid-pattern.svg')] bg-[length:40px_40px]">
+        {/* Top Header / Breadcrumb Bar */}
+        <header className="px-8 py-5 flex items-center justify-between bg-[var(--color-background)]/80 backdrop-blur-md border-b border-[var(--color-border)] sticky top-0 z-40">
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight">Performance Dashboard</h2>
+            <div className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] mt-1">
+              <span>Overview</span>
+              <span>/</span>
+              <span className="text-[var(--color-primary)] font-medium">Session Analysis</span>
+            </div>
+          </div>
 
-          {/* Video Playground */}
-          <div className="lg:col-span-2 bg-[var(--color-surface)] rounded-xl p-4 border border-white/5 flex flex-col">
-            {/* Video Tabs */}
-            <VideoTabs onSwitchVideo={switchToVideo} />
+          <div className="flex items-center gap-6">
+            {/* Search Bar */}
+            <div className="relative hidden md:group md:block">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--color-text-dim)]">
+                <Search className="w-5 h-5" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search analysis..."
+                className="bg-[var(--color-surface-base)] border border-[var(--color-border)] rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all w-64 group-hover:w-80 shadow-inner"
+              />
+            </div>
 
-            <div className="relative aspect-video bg-black rounded-lg overflow-hidden mb-4">
-              {isRecorderOpen ? (
-                <Recorder
-                  autoStart={autoStartRecording}
-                  onUploadComplete={({ downloadUrl, blobName }) => {
-                    setVideoUrl(downloadUrl);
-                    closeRecorder();
-                    runStreamingAnalysis(blobName);
-                  }}
-                />
-              ) : (
-                <VideoPlayer
-                  ref={videoPlayerRef}
-                  src={currentVideoUrl}
-                  className="w-full h-full"
-                  onDurationChange={setVideoDuration}
-                />
-              )}
+            <button className="px-6 py-2.5 bg-gradient-to-r from-[var(--color-primary)] to-[#0891b2] text-white rounded-xl font-bold hover:shadow-[0_0_20px_var(--color-primary-glow)] transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              <span>Judge My Performance</span>
+            </button>
+          </div>
+        </header>
 
-              {/* Manual Recorder Toggle (Safe UX) */}
-              {!isRecorderOpen && (
-                <div className="absolute top-4 right-4 z-10 flex gap-2">
-                  <button
-                    onClick={() => openRecorder()}
-                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg"
-                  >
-                    🎥 Record
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg disabled:opacity-50"
-                  >
-                    {isUploading ? '⏳ Uploading...' : '📁 Upload'}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+
+          {/* Top Stats Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Cringe Score Card */}
+            <div className="glass-panel p-6 rounded-2xl relative overflow-hidden group hover:border-[var(--color-primary)] transition-colors duration-300">
+              <div className="absolute -right-6 -top-6 w-32 h-32 bg-[var(--color-primary)]/10 rounded-full blur-3xl group-hover:bg-[var(--color-primary)]/20 transition-all"></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[var(--color-text-muted)] font-medium text-sm uppercase tracking-wider">Cringe Score</h3>
+                  <span className={`px-2 py-1 rounded text-xs font-bold ${currentAnalysis && currentAnalysis.overall_score > 80 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
+                    {currentAnalysis ? (currentAnalysis.overall_score > 80 ? 'CRITICAL' : 'OPTIMAL') : 'WAITING'}
+                  </span>
                 </div>
-              )}
-              {!isRecorderOpen && !currentVideoUrl && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4">🎬</div>
-                    <p className="text-gray-400">Record or upload a video to start</p>
+
+                <div className="flex items-baseline gap-2 mb-4">
+                  <TrendingDown className={`w-8 h-8 ${currentAnalysis && currentAnalysis.overall_score > 80 ? 'text-red-500' : 'text-[var(--color-primary)]'}`} />
+                  <span className="text-5xl font-bold text-white tracking-tighter">
+                    {currentAnalysis ? currentAnalysis.overall_score : '--'}
+                  </span>
+                  <span className="text-xl text-[var(--color-text-dim)] font-medium">/ 100</span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="h-2 bg-[var(--color-surface-elevated)] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] relative"
+                    style={{ width: `${currentAnalysis ? currentAnalysis.overall_score : 0}%` }}
+                  >
+                    <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]"></div>
                   </div>
                 </div>
-              )}
-              {/* Feedback Timeline Overlay - positioned on the native scrubber */}
-              {!isRecorderOpen && currentVideoUrl && currentAnalysis?.feedback_items && (
-                <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none px-3 pb-[12px]">
-                  <FeedbackTimeline
-                    feedbackItems={currentAnalysis.feedback_items}
-                    videoDuration={videoDuration}
-                    onSeekTo={handleSeekTo}
-                  />
+                <p className="text-xs text-[var(--color-text-dim)] mt-3">
+                  {currentAnalysis ? 'Score calculated based on performance metrics.' : 'Upload video to calculate.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Memory/Context Card */}
+            <div className="md:col-span-2">
+              <div className="glass-panel p-1 rounded-2xl h-full flex flex-col justify-center">
+                <MemoryIndicator />
+              </div>
+            </div>
+          </div>
+
+          {/* Main Workspace Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[600px]">
+
+            {/* Left Column: Coach (3 cols) */}
+            <div className="lg:col-span-3 flex flex-col h-full rounded-2xl overflow-hidden glass-panel border-[var(--color-border)]">
+              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
+                <h3 className="font-bold text-white flex items-center gap-2">
+                  <Mic className="w-5 h-5 text-[var(--color-primary)]" />
+                  <span>AI Coach</span>
+                </h3>
+              </div>
+              <div className="flex-1 p-0 overflow-hidden bg-[var(--color-surface-mid)]">
+                <CoachPanel
+                  onSeekTo={handleSeekTo}
+                  onShowOriginal={() => { }}
+                  onRecordFinal={() => openRecorder(undefined, undefined, undefined, true)}
+                />
+              </div>
+            </div>
+
+            {/* Middle Column: Video Workspace (6 cols) */}
+            <div className="lg:col-span-6 flex flex-col gap-6">
+              {/* Video Player Card */}
+              <div className="glass-panel rounded-2xl p-1 shadow-2xl shadow-black/50 overflow-hidden flex flex-col h-full">
+                {/* Custom Video Tabs Styling - Increased Padding */}
+                <div className="px-6 py-4 flex items-center justify-between bg-[var(--color-surface-base)]">
+                  <VideoTabs onSwitchVideo={switchToVideo} />
+                  <div className="flex gap-2">
+                    <button
+                      className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${!isRecorderOpen && currentVideoUrl ? 'text-white' : 'text-gray-600'}`}
+                      title="Download"
+                      disabled={!currentVideoUrl}
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                <div className="relative flex-1 bg-black group overflow-hidden rounded-b-xl">
+                  {isRecorderOpen ? (
+                    <Recorder
+                      autoStart={autoStartRecording}
+                      onUploadComplete={({ downloadUrl, blobName }) => {
+                        setVideoUrl(downloadUrl);
+                        closeRecorder();
+                        runStreamingAnalysis(blobName);
+                      }}
+                    />
+                  ) : (
+                    <div className="relative h-full">
+                      <VideoPlayer
+                        ref={videoPlayerRef}
+                        src={currentVideoUrl}
+                        className="w-full h-full object-contain"
+                        onDurationChange={setVideoDuration}
+                      />
+                    </div>
+                  )}
+
+                  {/* Floating Action Buttons */}
+                  {!isRecorderOpen && (
+                    <div className="absolute bottom-8 right-8 z-30 flex flex-col gap-3 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                      <button
+                        onClick={() => openRecorder()}
+                        className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-lg shadow-red-500/30 transition-transform active:scale-95 flex items-center justify-center"
+                        title="Record Video"
+                      >
+                        <Circle className="w-6 h-6 fill-current" />
+                      </button>
+                      <div className="relative">
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white p-4 rounded-full shadow-lg shadow-[var(--color-primary-glow)] transition-transform active:scale-95"
+                          title="Upload Video"
+                        >
+                          {isUploading ? (
+                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <Upload className="w-6 h-6" />
+                          )}
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {!isRecorderOpen && !currentVideoUrl && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                      <div className="text-center p-8 bg-black/40 backdrop-blur-sm rounded-3xl border border-white/5 flex flex-col items-center">
+                        <Film className="w-16 h-16 mb-4 text-[var(--color-primary)] opacity-80 drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]" />
+                        <h4 className="text-xl font-bold text-white mb-2">Ready for Action?</h4>
+                        <p className="text-[var(--color-text-dim)]">Record or upload a video to start the analysis.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Feedback Timeline */}
+                  {!isRecorderOpen && currentVideoUrl && currentAnalysis?.feedback_items && (
+                    <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none px-4 pb-3 bg-gradient-to-t from-black/80 to-transparent pt-12">
+                      <FeedbackTimeline
+                        feedbackItems={currentAnalysis.feedback_items}
+                        videoDuration={videoDuration}
+                        onSeekTo={handleSeekTo}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Lyrics Panel */}
-            <div className="mt-4 bg-[var(--color-surface-elevated)] rounded-lg p-4 min-h-[8rem]">
-              <p className="text-gray-400 text-sm">♪ Lyrics will appear here...</p>
+            {/* Right Column: Analysis History (3 cols) */}
+            <div className="lg:col-span-3 flex flex-col h-full rounded-2xl overflow-hidden glass-panel border-[var(--color-border)]">
+              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
+                <h3 className="font-bold text-white flex items-center gap-2">
+                  <BarChart2 className="w-5 h-5 text-[var(--color-secondary)]" />
+                  <span>Analysis</span>
+                </h3>
+              </div>
+              <div className="flex-1 overflow-hidden bg-[var(--color-surface-mid)]">
+                <HistoryPanel onSeekTo={handleSeekTo} />
+              </div>
             </div>
-          </div>
-
-          {/* Analyst Panel - Now using HistoryPanel */}
-          <HistoryPanel onSeekTo={handleSeekTo} />
-        </div>
-
-        {/* Cringe Score & Memory Status */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 bg-[var(--color-surface)] rounded-xl p-6 border border-white/5 text-center">
-            <h3 className="text-lg font-semibold text-gray-400 mb-2">Cringe Score</h3>
-            <div className="text-6xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              {currentAnalysis ? `${currentAnalysis.overall_score}/100` : '--/100'}
-            </div>
-            <p className="text-gray-400 mt-2">
-              {currentAnalysis ? currentAnalysis.summary : 'Upload a video to get your score!'}
-            </p>
-          </div>
-          <div className="bg-[var(--color-surface)] rounded-xl p-4 border border-white/5">
-            <MemoryIndicator />
           </div>
         </div>
       </main>
