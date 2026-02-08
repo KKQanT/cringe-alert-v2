@@ -315,7 +315,7 @@ function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[var(--color-text-muted)] font-medium text-sm uppercase tracking-wider">Social Ready Score</h3>
                   <span className={`px-2 py-1 rounded text-xs font-bold ${currentAnalysis && currentAnalysis.overall_score > 80 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-                    {currentAnalysis ? (currentAnalysis.overall_score > 80 ? 'CRITICAL' : 'OPTIMAL') : 'WAITING'}
+                    {currentAnalysis ? (currentAnalysis.overall_score <= 60 ? 'CRINGE' : 'OPTIMAL') : 'WAITING'}
                   </span>
                 </div>
 
@@ -388,7 +388,7 @@ function App() {
                   <VideoTabs onSwitchVideo={switchToVideo} />
                   <div className="flex gap-2">
                     <button
-                      className={`p-2 rounded-lg hover:bg-white/10 transition-colors ${!isRecorderOpen && currentVideoUrl ? 'text-white' : 'text-gray-600'}`}
+                      className={`p-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer ${!isRecorderOpen && currentVideoUrl ? 'text-white' : 'text-gray-600'}`}
                       title="Download"
                       disabled={!currentVideoUrl}
                     >
@@ -442,7 +442,7 @@ function App() {
                     <div className="absolute bottom-8 right-8 z-30 flex flex-col gap-3 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
                       <button
                         onClick={() => openRecorder()}
-                        className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-lg shadow-red-500/30 transition-transform active:scale-95 flex items-center justify-center"
+                        className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-lg shadow-red-500/30 transition-transform active:scale-95 flex items-center justify-center cursor-pointer"
                         title="Record Video"
                       >
                         <Circle className="w-6 h-6 fill-current" />
@@ -450,7 +450,7 @@ function App() {
                       <div className="relative">
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white p-4 rounded-full shadow-lg shadow-[var(--color-primary-glow)] transition-transform active:scale-95"
+                          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white p-4 rounded-full shadow-lg shadow-[var(--color-primary-glow)] transition-transform active:scale-95 cursor-pointer"
                           title="Upload Video"
                         >
                           <Upload className="w-6 h-6" />

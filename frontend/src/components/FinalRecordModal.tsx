@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { X, Film, Upload, Loader2, Circle } from 'lucide-react';
+import { X, Film, Upload, Loader2 } from 'lucide-react';
 import { Recorder } from './Recorder';
 import { useGetSignedUrl, uploadFileToUrl } from '../services/api';
 
@@ -78,7 +78,7 @@ export const FinalRecordModal: React.FC<FinalRecordModalProps> = ({
               Show what you've got! Record your full performance.
             </p>
           </div>
-          <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <button onClick={handleClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors cursor-pointer">
             <X className="w-5 h-5 text-[var(--color-text-muted)]" />
           </button>
         </div>
@@ -101,7 +101,7 @@ export const FinalRecordModal: React.FC<FinalRecordModalProps> = ({
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors cursor-pointer"
               >
                 <Upload className="w-5 h-5" />
                 <span className="text-sm font-medium">Upload a video file</span>
@@ -128,7 +128,7 @@ export const FinalRecordModal: React.FC<FinalRecordModalProps> = ({
         <div className="px-6 py-4 border-t border-[var(--color-border)] flex justify-end">
           <button
             onClick={handleClose}
-            className="px-4 py-2.5 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-mid)] text-[var(--color-text-muted)] border border-[var(--color-border)] transition font-medium text-sm"
+            className="px-4 py-2.5 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-mid)] text-[var(--color-text-muted)] border border-[var(--color-border)] transition font-medium text-sm cursor-pointer"
           >
             Cancel
           </button>

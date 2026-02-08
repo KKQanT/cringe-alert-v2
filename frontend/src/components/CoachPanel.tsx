@@ -333,7 +333,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
         {!isConnected ? (
           <button
             onClick={connect}
-            className="flex-1 bg-gradient-to-r from-[var(--color-primary)] to-[#0891b2] hover:shadow-[0_0_20px_var(--color-primary-glow)] text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+            className="flex-1 bg-gradient-to-r from-[var(--color-primary)] to-[#0891b2] hover:shadow-[0_0_20px_var(--color-primary-glow)] text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 transform hover:-translate-y-0.5 cursor-pointer"
           >
             <MessageSquare className="w-5 h-5" /> Start Session
           </button>
@@ -351,13 +351,13 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
             <button
               onClick={sendMessage}
               disabled={!inputText.trim()}
-              className="px-4 py-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white transition font-medium disabled:opacity-30 disabled:cursor-not-allowed"
+              className="px-4 py-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white transition font-medium disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
             >
               <Send className="w-5 h-5" />
             </button>
             <button
               onClick={disconnect}
-              className="px-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-red-500/20 text-[var(--color-text-muted)] hover:text-red-500 border border-[var(--color-border)] hover:border-red-500/50 transition font-medium"
+              className="px-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-red-500/20 text-[var(--color-text-muted)] hover:text-red-500 border border-[var(--color-border)] hover:border-red-500/50 transition font-medium cursor-pointer"
             >
               End
             </button>

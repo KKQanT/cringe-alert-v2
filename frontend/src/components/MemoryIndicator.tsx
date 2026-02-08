@@ -62,8 +62,8 @@ export const MemoryIndicator: React.FC<MemoryIndicatorProps> = ({ onRecordFinal 
                 }`} />
             )}
             <div className={`flex-1 rounded-xl p-3 border transition-colors ${step.done
-                ? 'border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5'
-                : 'border-[var(--color-border)] bg-[var(--color-surface-base)]'
+              ? 'border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5'
+              : 'border-[var(--color-border)] bg-[var(--color-surface-base)]'
               }`}>
               <div className="flex items-center gap-2 mb-1">
                 {step.done ? (
@@ -95,7 +95,7 @@ export const MemoryIndicator: React.FC<MemoryIndicatorProps> = ({ onRecordFinal 
         <div className="mt-6 pt-4 border-t border-[var(--color-border)]">
           <button
             onClick={onRecordFinal}
-            className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-[var(--color-primary)] via-cyan-400 to-[#0891b2] p-[1px] shadow-[0_0_20px_var(--color-primary-glow)] transition-all hover:shadow-[0_0_30px_var(--color-primary-glow)] hover:-translate-y-0.5"
+            className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-[var(--color-primary)] via-cyan-400 to-[#0891b2] p-[1px] shadow-[0_0_20px_var(--color-primary-glow)] transition-all hover:shadow-[0_0_30px_var(--color-primary-glow)] hover:-translate-y-0.5 cursor-pointer"
           >
             <div className="relative flex items-center justify-center gap-3 rounded-xl bg-black/20 backdrop-blur-sm px-6 py-4 transition-colors group-hover:bg-transparent">
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 group-hover:bg-white/30 transition-colors">

@@ -112,14 +112,14 @@ export const Recorder: React.FC<RecorderProps> = ({ onUploadComplete, autoStart 
         ) : !isRecording ? (
           <button
             onClick={startRecording}
-            className="px-6 py-2 bg-red-600 text-white rounded-full font-bold hover:bg-red-700 transition"
+            className="px-6 py-2 bg-red-600 text-white rounded-full font-bold hover:bg-red-700 transition cursor-pointer"
           >
             Start Recording
           </button>
         ) : (
           <button
             onClick={stopRecording}
-            className="px-6 py-2 bg-gray-800 text-white rounded-full font-bold border border-red-500 hover:bg-gray-700 transition"
+            className="px-6 py-2 bg-gray-800 text-white rounded-full font-bold border border-red-500 hover:bg-gray-700 transition cursor-pointer"
           >
             Stop & Upload
           </button>

@@ -11,8 +11,8 @@ export const VideoTabs: React.FC<VideoTabsProps> = ({ onSwitchVideo }) => {
 
   const getButtonClass = (isActive: boolean, isDisabled: boolean) => {
     if (isDisabled) return 'bg-[var(--color-surface-elevated)] text-[var(--color-text-dim)] opacity-50 cursor-not-allowed border border-transparent';
-    if (isActive) return 'bg-[var(--color-primary)] text-white shadow-[0_0_15px_var(--color-primary-glow)] border border-[var(--color-primary)]';
-    return 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--color-surface-mid)] border border-[var(--color-border)]';
+    if (isActive) return 'bg-[var(--color-primary)] text-white shadow-[0_0_15px_var(--color-primary-glow)] border border-[var(--color-primary)] cursor-pointer';
+    return 'bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] hover:text-white hover:bg-[var(--color-surface-mid)] border border-[var(--color-border)] cursor-pointer';
   };
 
   return (

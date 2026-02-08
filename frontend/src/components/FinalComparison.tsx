@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSessionStore } from '../stores/useSessionStore';
 import { useAnalysisStore } from '../stores/useAnalysisStore';
-import { TrendingUp, TrendingDown, CheckCircle, AlertTriangle, X, Instagram } from 'lucide-react';
+import { TrendingUp, TrendingDown, X, Instagram } from 'lucide-react';
 
 interface FinalComparisonProps {
   onClose?: () => void;
@@ -27,7 +27,7 @@ export const FinalComparison: React.FC<FinalComparisonProps> = ({ onClose }) => 
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-white text-sm">Performance Comparison</h3>
         {onClose && (
-          <button className="p-1 hover:bg-white/10 rounded transition-colors" onClick={onClose}>
+          <button className="p-1 hover:bg-white/10 rounded transition-colors cursor-pointer" onClick={onClose}>
             <X size={16} className="text-[var(--color-text-dim)]" />
           </button>
         )}

@@ -40,16 +40,14 @@ export const FeedbackFixModal: React.FC<FeedbackFixModalProps> = ({
   onClose,
   onFixed,
   sessionId,
-  originalVideoUrl,
 }) => {
   const [phase, setPhase] = useState<ModalPhase>('idle');
   const [evaluationStatus, setEvaluationStatus] = useState('');
   const { fixResult, setFixResult, setFixEvaluating, updateFeedbackItemStatus } = useAnalysisStore();
-  const { feedbackAddressed, feedbackTotal } = useSessionStore();
 
   const getSignedUrlMutation = useGetSignedUrl();
 
-  const handleRecordComplete = useCallback(async ({ downloadUrl, blobName }: { downloadUrl: string; blobName: string }) => {
+  const handleRecordComplete = useCallback(async ({ blobName }: { downloadUrl: string; blobName: string }) => {
     if (feedbackIndex == null || !sessionId) return;
 
     setPhase('evaluating');
@@ -165,7 +163,7 @@ export const FeedbackFixModal: React.FC<FeedbackFixModalProps> = ({
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors cursor-pointer">
             <X className="w-5 h-5 text-[var(--color-text-muted)]" />
           </button>
         </div>
@@ -232,7 +230,7 @@ export const FeedbackFixModal: React.FC<FeedbackFixModalProps> = ({
               <div className={`rounded-xl p-5 border ${fixResult.is_fixed
                 ? 'bg-green-500/10 border-green-500/30'
                 : 'bg-yellow-500/10 border-yellow-500/30'
-              }`}>
+                }`}>
                 <div className="flex items-center gap-3 mb-3">
                   {fixResult.is_fixed ? (
                     <>
@@ -268,14 +266,14 @@ export const FeedbackFixModal: React.FC<FeedbackFixModalProps> = ({
               {fixResult.is_fixed ? (
                 <button
                   onClick={handleMarkFixed}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle className="w-5 h-5" /> Done
                 </button>
               ) : (
                 <button
                   onClick={handleTryAgain}
-                  className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                  className="flex-1 bg-[var(--color-primary)] hover:bg-[var(--color-primary)]/80 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <RotateCcw className="w-5 h-5" /> Try Again
                 </button>
@@ -284,14 +282,14 @@ export const FeedbackFixModal: React.FC<FeedbackFixModalProps> = ({
           )}
           <button
             onClick={handleSkip}
-            className="px-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-mid)] text-[var(--color-text-muted)] border border-[var(--color-border)] transition font-medium flex items-center gap-2"
+            className="px-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-mid)] text-[var(--color-text-muted)] border border-[var(--color-border)] transition font-medium flex items-center gap-2 cursor-pointer"
           >
             <SkipForward className="w-4 h-4" /> Skip
           </button>
           {(phase === 'idle' || phase === 'recording') && (
             <button
               onClick={onClose}
-              className="px-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-mid)] text-[var(--color-text-muted)] border border-[var(--color-border)] transition font-medium"
+              className="px-4 py-3 rounded-xl bg-[var(--color-surface-elevated)] hover:bg-[var(--color-surface-mid)] text-[var(--color-text-muted)] border border-[var(--color-border)] transition font-medium cursor-pointer"
             >
               Close
             </button>

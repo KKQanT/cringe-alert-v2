@@ -140,8 +140,7 @@ export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSessi
             <UserCircle className="w-full h-full text-[var(--color-text-dim)]" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-white">Hackathon Judge</div>
-            <div className="text-xs text-[var(--color-text-dim)]">Trial User</div>
+            <div className="text-sm font-semibold text-white">Trial User</div>
           </div>
         </div>
       </div>
