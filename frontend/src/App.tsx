@@ -364,7 +364,7 @@ function App() {
               <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
                 <h3 className="font-bold text-white flex items-center gap-2">
                   <Mic className="w-5 h-5 text-[var(--color-primary)]" />
-                  <span>Coach - Gemini 3 Flash</span>
+                  <span>Gemini 3 The Coach</span>
                 </h3>
               </div>
               <div className="flex-1 p-0 overflow-hidden bg-[var(--color-surface-mid)]">
@@ -496,7 +496,7 @@ function App() {
               <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
                 <h3 className="font-bold text-white flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-[var(--color-secondary)]" />
-                  <span>Judge - Gemini 3 Pro</span>
+                  <span>Gemini 3 The Judge</span>
                 </h3>
               </div>
               <div className="flex-1 overflow-hidden bg-[var(--color-surface-mid)]">
