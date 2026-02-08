@@ -26,10 +26,16 @@ export class ChatClient {
   }
 
   async connect(sessionId?: string): Promise<void> {
-    const baseUrl = `ws://localhost:8000/ws/coach`;
-    const wsUrl = sessionId
-      ? `${baseUrl}?session_id=${encodeURIComponent(sessionId)}`
-      : baseUrl;
+    const wsBase = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+    const baseUrl = `${wsBase}/ws/coach`;
+    const params = new URLSearchParams();
+    if (sessionId) params.set('session_id', sessionId);
+
+    // Attach auth token as query param (WebSocket can't use headers)
+    const token = localStorage.getItem('cringe_alert_token');
+    if (token) params.set('token', token);
+
+    const wsUrl = params.toString() ? `${baseUrl}?${params}` : baseUrl;
 
     this.ws = new WebSocket(wsUrl);
 

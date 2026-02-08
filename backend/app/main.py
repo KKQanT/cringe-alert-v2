@@ -10,7 +10,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from app.config import settings
-from app.routers import upload, analyze, websocket, coach, session
+from app.routers import upload, analyze, websocket, coach, session, auth
 
 app = FastAPI(
     title="Cringe Alert API",
@@ -31,6 +31,10 @@ app.add_middleware(
 )
 
 # Include routers
+# Auth router (no auth required)
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
+# Protected routers
 # NOTE: coach.router MUST come before websocket.router because
 # websocket.router has /ws/{session_id} which would catch /ws/coach
 app.include_router(upload.router, prefix="/api/upload", tags=["upload"])

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, Literal
 from app.services import firebase_service, video_service, session_service
 from app.services.gemini_service import analyze_video_streaming, evaluate_fix_streaming, analyze_final_video_streaming
+from app.services.auth_service import get_current_user
 import os
 import logging
 import json
@@ -11,7 +12,7 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Analyze"])
+router = APIRouter(tags=["Analyze"], dependencies=[Depends(get_current_user)])
 
 
 class AnalyzeRequest(BaseModel):

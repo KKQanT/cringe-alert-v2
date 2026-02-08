@@ -1,17 +1,18 @@
 """
 Session Router - API endpoints for managing coaching sessions.
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 import uuid
 import logging
 
 from app.services import session_service, firebase_service
+from app.services.auth_service import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+router = APIRouter(prefix="/api/sessions", tags=["sessions"], dependencies=[Depends(get_current_user)])
 
 
 # ============ Request/Response Models ============

@@ -7,9 +7,10 @@ Protocol:
 import json
 import logging
 from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, Depends
 from app.services.live_service import ChatCoachSession
 from app.services import session_service
+from app.services.auth_service import ws_get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,8 @@ router = APIRouter(tags=["Coach"])
 @router.websocket("/coach")
 async def coach_websocket(
     websocket: WebSocket,
-    session_id: Optional[str] = Query(None, description="Session ID for context")
+    session_id: Optional[str] = Query(None, description="Session ID for context"),
+    _user: str = Depends(ws_get_current_user),
 ):
     """
     WebSocket endpoint for text-based coaching.

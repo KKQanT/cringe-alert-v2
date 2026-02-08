@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173"
 
+    # Auth
+    JWT_SECRET: str = "cringe-alert-v2-hackathon-secret-key-2026"
+    AUTH_USERS: str = ""  # Format: "user1:pass1,user2:pass2"
+
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.services.firebase_service import get_upload_signed_url, get_download_url
+from app.services.auth_service import get_current_user
 
-router = APIRouter(tags=["Upload"])
+router = APIRouter(tags=["Upload"], dependencies=[Depends(get_current_user)])
 
 class SignedUrlRequest(BaseModel):
     filename: str

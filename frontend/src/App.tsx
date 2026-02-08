@@ -16,7 +16,9 @@ import { MemoryIndicator } from './components/MemoryIndicator';
 import { FinalComparison } from './components/FinalComparison';
 import { FeedbackFixModal } from './components/FeedbackFixModal';
 import { FinalRecordModal } from './components/FinalRecordModal';
+import { LoginPage } from './components/LoginPage';
 import { Sidebar } from './components/Sidebar';
+import { isLoggedIn } from './services/auth';
 import {
   TrendingDown, Mic, BarChart2, Upload, Download,
   Circle, Film
@@ -66,6 +68,16 @@ function restoreAnalysisFromSession(data: FullSession) {
 }
 
 function App() {
+  const [authed, setAuthed] = useState(isLoggedIn());
+
+  if (!authed) {
+    return <LoginPage onSuccess={() => setAuthed(true)} />;
+  }
+
+  return <AppMain />;
+}
+
+function AppMain() {
   const {
     sessionId, sessions, setSessions, setSessionId, loadFromBackend,
     currentVideoUrl, isRecorderOpen, autoStartRecording, recorderType,

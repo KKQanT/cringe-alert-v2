@@ -1,6 +1,7 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from typing import Dict
 import uuid
+from app.services.auth_service import ws_get_current_user
 
 router = APIRouter()
 
@@ -9,7 +10,11 @@ connections: Dict[str, WebSocket] = {}
 
 
 @router.websocket("/ws/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    session_id: str,
+    _user: str = Depends(ws_get_current_user),
+):
     """WebSocket endpoint for real-time AI communication."""
     await websocket.accept()
     connections[session_id] = websocket

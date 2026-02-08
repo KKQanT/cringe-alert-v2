@@ -1,4 +1,5 @@
 import { useQuery, useMutation, QueryClient } from '@tanstack/react-query';
+import { authFetch } from './auth';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -93,19 +94,19 @@ export interface FullSession {
 // ============ Session API ============
 
 export async function fetchUserSessions(userId: string = '1'): Promise<SessionSummary[]> {
-  const response = await fetch(`${API_BASE}/api/sessions?user_id=${encodeURIComponent(userId)}`);
+  const response = await authFetch(`${API_BASE}/api/sessions?user_id=${encodeURIComponent(userId)}`);
   if (!response.ok) throw new Error('Failed to fetch sessions');
   return response.json();
 }
 
 export async function fetchFullSession(sessionId: string): Promise<FullSession> {
-  const response = await fetch(`${API_BASE}/api/sessions/${encodeURIComponent(sessionId)}/full`);
+  const response = await authFetch(`${API_BASE}/api/sessions/${encodeURIComponent(sessionId)}/full`);
   if (!response.ok) throw new Error('Failed to fetch full session');
   return response.json();
 }
 
 export async function createSession(userId: string = '1'): Promise<{ session_id: string }> {
-  const response = await fetch(`${API_BASE}/api/sessions`, {
+  const response = await authFetch(`${API_BASE}/api/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ user_id: userId }),
@@ -131,7 +132,7 @@ export const useHealthCheck = () => {
 export const useGetSignedUrl = () => {
   return useMutation({
     mutationFn: async ({ filename, contentType }: { filename: string; contentType: string }) => {
-      const response = await fetch(`${API_BASE}/api/upload/signed-url`, {
+      const response = await authFetch(`${API_BASE}/api/upload/signed-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename, content_type: contentType }),
@@ -157,7 +158,7 @@ export const uploadFileToUrl = async (signedUrl: string, file: Blob, contentType
 export const useAnalyzeVideo = () => {
   return useMutation({
     mutationFn: async (videoUrl: string) => {
-      const response = await fetch(`${API_BASE}/api/analyze/video`, {
+      const response = await authFetch(`${API_BASE}/api/analyze/video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video_url: videoUrl }),
@@ -181,7 +182,7 @@ export async function* analyzeVideoStream(
   if (sessionId) body.session_id = sessionId;
   if (videoType) body.video_type = videoType;
 
-  const response = await fetch(`${API_BASE}/api/analyze/video/stream`, {
+  const response = await authFetch(`${API_BASE}/api/analyze/video/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -227,7 +228,7 @@ export async function* evaluateFixStream(
   type: 'status' | 'thinking' | 'complete' | 'error';
   content: string;
 }> {
-  const response = await fetch(`${API_BASE}/api/analyze/video/fix/stream`, {
+  const response = await authFetch(`${API_BASE}/api/analyze/video/fix/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
