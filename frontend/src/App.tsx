@@ -15,6 +15,7 @@ import { VideoTabs } from './components/VideoTabs';
 import { MemoryIndicator } from './components/MemoryIndicator';
 import { FinalComparison } from './components/FinalComparison';
 import { FeedbackFixModal } from './components/FeedbackFixModal';
+import { FinalRecordModal } from './components/FinalRecordModal';
 import { Sidebar } from './components/Sidebar';
 import {
   TrendingDown, Mic, BarChart2, Upload, Download,
@@ -79,6 +80,7 @@ function App() {
   const [videoDuration, setVideoDuration] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [isFinalModalOpen, setIsFinalModalOpen] = useState(false);
 
   const getSignedUrlMutation = useGetSignedUrl();
 
@@ -236,6 +238,16 @@ function App() {
     openFixModal(index);
   }, [openFixModal]);
 
+  const handleOpenFinalModal = useCallback(() => {
+    setIsFinalModalOpen(true);
+  }, []);
+
+  const handleFinalRecordComplete = useCallback((downloadUrl: string, blobName: string) => {
+    setIsFinalModalOpen(false);
+    setFinalVideo(downloadUrl, blobName);
+    runStreamingAnalysis(blobName, 'final');
+  }, [setFinalVideo, runStreamingAnalysis]);
+
   const handleNewSession = useCallback(async () => {
     try {
       const { session_id } = await createSession(USER_ID);
@@ -338,7 +350,7 @@ function App() {
                     onClose={() => setShowComparison(false)}
                   />
                 ) : (
-                  <MemoryIndicator />
+                  <MemoryIndicator onRecordFinal={handleOpenFinalModal} />
                 )}
               </div>
             </div>
@@ -359,7 +371,7 @@ function App() {
                 <CoachPanel
                   onSeekTo={handleSeekTo}
                   onShowOriginal={() => switchToVideo('original')}
-                  onRecordFinal={() => openRecorder(undefined, undefined, undefined, true, 'final')}
+                  onRecordFinal={handleOpenFinalModal}
                   onSwitchTab={(tab) => switchToVideo(tab)}
                   onHighlightFeedback={(index) => useAnalysisStore.getState().setHighlightedFeedback(index)}
                   onOpenFixModal={handleOpenFixModal}
@@ -414,8 +426,19 @@ function App() {
                     </div>
                   )}
 
+                  {/* Upload Progress Overlay - always visible when uploading */}
+                  {isUploading && !isRecorderOpen && (
+                    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                      <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--color-surface-base)]/80 border border-[var(--color-border)]">
+                        <div className="w-10 h-10 border-3 border-[var(--color-primary)]/30 border-t-[var(--color-primary)] rounded-full animate-spin" />
+                        <p className="text-sm font-medium text-white">Uploading video...</p>
+                        <p className="text-xs text-[var(--color-text-dim)]">This may take a moment</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Floating Action Buttons */}
-                  {!isRecorderOpen && (
+                  {!isRecorderOpen && !isUploading && (
                     <div className="absolute bottom-8 right-8 z-30 flex flex-col gap-3 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
                       <button
                         onClick={() => openRecorder()}
@@ -427,15 +450,10 @@ function App() {
                       <div className="relative">
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading}
                           className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white p-4 rounded-full shadow-lg shadow-[var(--color-primary-glow)] transition-transform active:scale-95"
                           title="Upload Video"
                         >
-                          {isUploading ? (
-                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <Upload className="w-6 h-6" />
-                          )}
+                          <Upload className="w-6 h-6" />
                         </button>
                         <input
                           ref={fileInputRef}
@@ -488,6 +506,13 @@ function App() {
           </div>
         </div>
       </main>
+
+      {/* Final Record Modal */}
+      <FinalRecordModal
+        isOpen={isFinalModalOpen}
+        onClose={() => setIsFinalModalOpen(false)}
+        onComplete={handleFinalRecordComplete}
+      />
 
       {/* Fix Modal */}
       <FeedbackFixModal
