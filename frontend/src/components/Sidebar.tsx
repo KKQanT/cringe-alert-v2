@@ -1,4 +1,4 @@
-import { Siren, LayoutDashboard, Clock, UserCircle, Plus, Film, Trophy } from 'lucide-react';
+import { LayoutDashboard, Clock, UserCircle, Plus, Film, Trophy } from 'lucide-react';
 import type { SessionSummary } from '../services/api';
 
 interface SidebarProps {
@@ -38,12 +38,14 @@ export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSessi
     <aside className="w-64 h-screen sticky top-0 bg-[var(--color-surface-base)] border-r border-[var(--color-border)] flex flex-col p-6 overflow-y-auto z-50">
       {/* Logo */}
       <div className="flex items-center gap-3 mb-10 px-2">
-        <div className="w-10 h-10 bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--color-primary-glow)]">
-          <Siren className="w-6 h-6 text-white" />
-        </div>
+        <img
+          src="/favicon.png"
+          alt="Logo"
+          className="w-14 h-14 rounded-xl shadow-lg shadow-[var(--color-primary-glow)]"
+        />
         <div>
           <h1 className="font-bold text-lg tracking-tight text-white">Cringe Alert</h1>
-          <p className="text-[10px] text-[var(--color-secondary)] font-semibold tracking-wider uppercase">Analyst V2</p>
+          <p className="text-[10px] text-[var(--color-secondary)] font-semibold tracking-wider uppercase">By Gemini 3</p>
         </div>
       </div>
 

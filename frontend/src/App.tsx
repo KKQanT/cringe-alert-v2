@@ -167,7 +167,7 @@ function App() {
               }
 
               // Refresh session list after analysis is saved
-              fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
+              fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => { });
             } catch {
               console.error('Failed to parse analysis result:', chunk.content);
               setStatus('Analysis complete (parsing error)');
@@ -244,7 +244,7 @@ function App() {
       useAnalysisStore.getState().reset();
       setShowComparison(false);
       // Refresh session list
-      fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
+      fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => { });
     } catch (err) {
       console.error('Failed to create new session:', err);
     }
@@ -352,7 +352,7 @@ function App() {
               <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
                 <h3 className="font-bold text-white flex items-center gap-2">
                   <Mic className="w-5 h-5 text-[var(--color-primary)]" />
-                  <span>AI Coach</span>
+                  <span>Coach - Gemini 3 Flash</span>
                 </h3>
               </div>
               <div className="flex-1 p-0 overflow-hidden bg-[var(--color-surface-mid)]">
@@ -478,7 +478,7 @@ function App() {
               <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
                 <h3 className="font-bold text-white flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-[var(--color-secondary)]" />
-                  <span>Analysis</span>
+                  <span>Judge - Gemini 3 Pro</span>
                 </h3>
               </div>
               <div className="flex-1 overflow-hidden bg-[var(--color-surface-mid)]">
@@ -501,7 +501,7 @@ function App() {
         onClose={closeFixModal}
         onFixed={(index) => {
           // Refresh session list to update sidebar
-          fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => {});
+          fetchUserSessions(USER_ID).then(list => setSessions(list)).catch(() => { });
           closeFixModal();
         }}
         sessionId={sessionId}
