@@ -45,7 +45,6 @@ export function Sidebar({ sessions, activeSessionId, onSelectSession, onNewSessi
         />
         <div>
           <h1 className="font-bold text-lg tracking-tight text-white">Cringe Alert</h1>
-          <p className="text-[10px] text-[var(--color-secondary)] font-semibold tracking-wider uppercase">By Gemini 3</p>
         </div>
       </div>
 

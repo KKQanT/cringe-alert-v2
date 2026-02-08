@@ -341,7 +341,6 @@ function App() {
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-4">
-                  <TrendingDown className={`w-8 h-8 ${currentAnalysis && currentAnalysis.overall_score > 80 ? 'text-red-500' : 'text-[var(--color-primary)]'}`} />
                   <span className="text-5xl font-bold text-white tracking-tighter">
                     {currentAnalysis ? currentAnalysis.overall_score : '--'}
                   </span>
@@ -384,8 +383,7 @@ function App() {
             <div className="lg:col-span-3 flex flex-col h-full rounded-2xl overflow-hidden glass-panel border-[var(--color-border)]">
               <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
                 <h3 className="font-bold text-white flex items-center gap-2">
-                  <Mic className="w-5 h-5 text-[var(--color-primary)]" />
-                  <span>Gemini 3 The Coach</span>
+                  <span>Gemini 3 (Flash) The Coach</span>
                 </h3>
               </div>
               <div className="flex-1 p-0 overflow-hidden bg-[var(--color-surface-mid)]">
@@ -516,8 +514,7 @@ function App() {
             <div className="lg:col-span-3 flex flex-col h-full rounded-2xl overflow-hidden glass-panel border-[var(--color-border)]">
               <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface-base)]/50">
                 <h3 className="font-bold text-white flex items-center gap-2">
-                  <BarChart2 className="w-5 h-5 text-[var(--color-secondary)]" />
-                  <span>Gemini 3 The Judge</span>
+                  <span>Gemini 3 (Pro) The Judge</span>
                 </h3>
               </div>
               <div className="flex-1 overflow-hidden bg-[var(--color-surface-mid)]">

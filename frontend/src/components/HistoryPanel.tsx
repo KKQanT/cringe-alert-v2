@@ -96,9 +96,6 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ onSeekTo, onOpenFixM
       {currentAnalysis && (
         <div className="text-center mb-4 py-4 bg-[var(--color-surface-elevated)] rounded-xl border border-[var(--color-border)] relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-primary)]/5 to-[var(--color-secondary)]/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="text-3xl font-bold text-white relative z-10">
-            {currentAnalysis.overall_score}<span className="text-lg text-[var(--color-text-dim)] font-medium">/100</span>
-          </div>
           <p className="text-xs text-[var(--color-text-muted)] mt-1 relative z-10">{currentAnalysis.summary}</p>
         </div>
       )}
