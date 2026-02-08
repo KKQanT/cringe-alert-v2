@@ -61,7 +61,7 @@ async def coach_websocket(
         await websocket.send_json({"type": "connected"})
 
         # Send initial greeting - proactive about fix workflow
-        async for event in session.send_message("Start the coaching session. Greet the user, mention their score and key issues. Then suggest which feedback item they should fix first (pick the easiest or most impactful one). Be proactive and encouraging!"):
+        async for event in session.send_message("Start the coaching session. Greet the user, mention their score and key issues. Pick the easiest or most impactful unfixed feedback item to start with — use show_feedback_card to highlight it AND seek_video to jump to its timestamp so they can see the problem. Explain the issue and give a tip, but do NOT open the fix modal yet. Wait for the user to say they want to fix it."):
             await websocket.send_json(event)
 
         # Main loop: receive from client
