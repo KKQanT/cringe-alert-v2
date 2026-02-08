@@ -96,6 +96,10 @@ function App() {
           if (cancelled) return;
           loadFromBackend(fullSession);
           restoreAnalysisFromSession(fullSession);
+          // Show comparison if session has a final video
+          if (fullSession.final_video?.score != null) {
+            setShowComparison(true);
+          }
         } else {
           const { session_id } = await createSession(USER_ID);
           if (cancelled) return;
@@ -252,7 +256,7 @@ function App() {
       loadFromBackend(fullSession);
       useAnalysisStore.getState().reset();
       restoreAnalysisFromSession(fullSession);
-      setShowComparison(false);
+      setShowComparison(fullSession.final_video?.score != null);
     } catch (err) {
       console.error('Failed to load session:', err);
     }
