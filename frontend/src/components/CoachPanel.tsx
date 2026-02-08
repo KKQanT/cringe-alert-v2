@@ -4,6 +4,45 @@ import { useAnalysisStore } from '../stores/useAnalysisStore';
 import { useSessionStore } from '../stores/useSessionStore';
 import { MessageSquare, Send, Wifi, WifiOff, Info } from 'lucide-react';
 
+/** Render simple inline markdown: **bold**, *italic* */
+function renderMarkdown(text: string): React.ReactNode[] {
+  // Split on **bold** and *italic* patterns
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  while (remaining.length > 0) {
+    // Match **bold** first (greedy: shortest match)
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+    // Match *italic* (but not **)
+    const italicMatch = remaining.match(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/);
+
+    // Find the earliest match
+    const boldIdx = boldMatch?.index ?? Infinity;
+    const italicIdx = italicMatch?.index ?? Infinity;
+
+    if (boldIdx === Infinity && italicIdx === Infinity) {
+      // No more matches
+      parts.push(remaining);
+      break;
+    }
+
+    if (boldIdx <= italicIdx && boldMatch) {
+      // Bold comes first
+      if (boldIdx > 0) parts.push(remaining.slice(0, boldIdx));
+      parts.push(<span key={key++} className="text-[var(--color-secondary)] font-medium">{boldMatch[1]}</span>);
+      remaining = remaining.slice(boldIdx + boldMatch[0].length);
+    } else if (italicMatch) {
+      // Italic comes first
+      if (italicIdx > 0) parts.push(remaining.slice(0, italicIdx));
+      parts.push(<span key={key++} className="text-[var(--color-primary)] font-medium">{italicMatch[1]}</span>);
+      remaining = remaining.slice(italicIdx + italicMatch[0].length);
+    }
+  }
+
+  return parts;
+}
+
 interface CoachPanelProps {
   onSeekTo?: (timestamp: number, whichVideo?: 'original' | 'latest') => void;
   onShowOriginal?: () => void;
@@ -282,7 +321,7 @@ export const CoachPanel: React.FC<CoachPanelProps> = ({ onSeekTo, onShowOriginal
                 }`}
             >
               {msg.role === 'system' && <Info className="w-4 h-4 inline-block mr-2 opacity-70" />}
-              {msg.content}
+              {msg.role === 'coach' ? renderMarkdown(msg.content) : msg.content}
             </div>
           </div>
         ))}
