@@ -313,7 +313,7 @@ function App() {
 
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-[var(--color-text-muted)] font-medium text-sm uppercase tracking-wider">Cringe Score</h3>
+                  <h3 className="text-[var(--color-text-muted)] font-medium text-sm uppercase tracking-wider">IG Posable Score</h3>
                   <span className={`px-2 py-1 rounded text-xs font-bold ${currentAnalysis && currentAnalysis.overall_score > 80 ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
                     {currentAnalysis ? (currentAnalysis.overall_score > 80 ? 'CRITICAL' : 'OPTIMAL') : 'WAITING'}
                   </span>
